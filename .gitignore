@@ -1,0 +1,30 @@
+# Build outputs
+target/
+dist/
+*.jar
+*.class
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Local secrets / credentials — never commit these
+.env
+*.env.local
+
+# IDE and editor files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Local Maven wrapper / Node version files (optional, uncomment if unwanted)
+# .mvn/
+# .nvmrc

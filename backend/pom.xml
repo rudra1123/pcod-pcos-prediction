@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.5</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.pcod</groupId>
+    <artifactId>pcod-prediction-backend</artifactId>
+    <version>1.0.0</version>
+    <name>PCOD Prediction Backend</name>
+    <description>Final-year project: Cognitive Analytics in Healthcare — PCOD/PCOS prediction.
+        Java 17 + Spring Boot 3.2 REST API over four Smile ensemble models trained on the
+        Kaggle PCOS dataset (541 patients, 41 input features).</description>
+
+    <properties>
+        <java.version>17</java.version>
+        <smile.version>3.1.1</smile.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Prediction history: Spring Data JPA + MySQL. No separate DB server
+             software is bundled — MySQL Server 8.x must be installed and
+             running (see README); the connection is configured in
+             application.properties (host / database / user / password). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- OpenAPI / Swagger UI for the REST API (see README). -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.3.0</version>
+        </dependency>
+
+        <!-- H2 is for TESTS ONLY (JPA repository tests): the runtime database
+             is MySQL, and no H2 dependency ships in the running application. -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Smile 3.1.1 (verified on Maven Central 2026-11-25).
+             NOTE: there is NO separate "smile-data" 3.1.1 artifact — in Smile 3.x the
+             DataFrame / vector classes live in smile-base, pulled in transitively by
+             smile-core. Only smile-core is declared here. -->
+        <dependency>
+            <groupId>com.github.haifengl</groupId>
+            <artifactId>smile-core</artifactId>
+            <version>${smile.version}</version>
+            <exclusions>
+                <!-- Keep Spring Boot's Logback binding; Smile ships slf4j-simple. -->
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-simple</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <!-- Lets the trainer run as: mvn exec:java -Dexec.mainClass=com.pcod.trainer.ModelTrainer -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,69 @@
+# PCOD Prediction — one-command start for MySQL + backend + frontend.
+#
+#   docker compose up --build
+#
+# Then open http://localhost:5173 (frontend) — the API is on
+# http://localhost:8080 (Swagger UI: http://localhost:8080/swagger-ui.html).
+#
+# First run: the backend container needs the trained models, which are baked
+# into the jar at image build time (mvn package), and MySQL, which is
+# created empty here (database pcod_db + prediction_records table are
+# created automatically on first connect/startup). Stop with
+# `docker compose down` (add -v to also delete the MySQL data volume).
+#
+# Secrets: set MYSQL_ROOT_PASSWORD and ADMIN_KEY in a .env file next to this
+# file (or in the shell) before starting. There is no default password —
+# Compose fails with a clear error if MYSQL_ROOT_PASSWORD is not set.
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: pcod-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: pcod_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root",
+             "-p${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build: ./backend
+    container_name: pcod-backend
+    environment:
+      # The backend reaches MySQL as service "mysql" inside this network.
+      MYSQL_URL: jdbc:mysql://mysql:3306/pcod_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
+      MYSQL_USERNAME: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      # Admin key for POST /api/retrain (X-Admin-Key header). Empty = unprotected.
+      ADMIN_KEY: ${ADMIN_KEY:-}
+      # Dataset CSV for POST /api/retrain (mounted read-only below).
+      PCOD_DATASET_PATH: /app/data/pcos_dataset.csv
+      PCOD_RESOURCES_DIR: /app/resources
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: pcod-frontend
+    environment:
+      # Vite proxies /api to the backend service inside this network.
+      VITE_BACKEND_URL: http://backend:8080
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  mysql-data:
