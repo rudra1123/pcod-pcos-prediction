@@ -199,7 +199,7 @@ class PredictionHistoryTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.verifiedOutcome").value(1));
 
-        mockMvc.perform(patch("/api/predictions/999999999").header("X-Admin-Key", "test-admin-key")
+        mockMvc.perform(patch("/api/predictions/999999999/outcome").header("X-Admin-Key", "test-admin-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"verifiedOutcome\": 1}"))
                 .andExpect(status().isNotFound());
