@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import smile.classification.Classifier;
 import smile.data.DataFrame;
@@ -21,9 +22,23 @@ import java.util.Map;
 
 /**
  * Loads the trained artefacts once at startup (NOT retrained on every boot):
- * the four serialised Smile models, metrics.json and preprocessing.json from
- * the classpath. {@link #reload(Path)} re-loads them from a directory on disk
- * after POST /api/retrain.
+ * the four serialised Smile models, metrics.json and preprocessing.json.
+ *
+ * <p>Artefacts are loaded from the external resources directory FIRST
+ * ({@code pcod.resources.dir}, i.e. {@code PCOD_RESOURCES_DIR}) when it
+ * holds a metrics.json — that is where POST /api/retrain writes, so a
+ * retrained model survives an application restart. When the directory
+ * has no metrics.json (fresh checkout, or the jar's baked-in artefacts),
+ * the classpath copies are used instead. A partial or corrupt external
+ * directory falls back to the classpath rather than leaving the service
+ * down.</p>
+ *
+ * <p>All loaded state lives in ONE immutable {@link Snapshot} held in a
+ * single volatile field: metrics, preprocessing and models are swapped
+ * together, atomically, so a prediction can never observe new metrics
+ * with old models (or vice versa). {@link #reload(Path)} builds the whole
+ * snapshot first and swaps it in one assignment; it is also synchronised
+ * so two concurrent reloads cannot interleave.</p>
  *
  * <p>Inference reproduces each model's exact training transform: the
  * per-model preprocessing (train-fitted mean/std/clip) and feature subset
@@ -35,7 +50,10 @@ import java.util.Map;
  *
  * <p>Both deployed models use their TUNED decision threshold (chosen on
  * train CV out-of-fold probabilities, stored in metrics.json), not 0.5:
- * a prediction is PCOS when P(PCOS) &gt;= threshold.</p>
+ * a prediction is PCOS when P(PCOS) &gt;= threshold. Confidence is the
+ * probability of the PREDICTED class (P(PCOS) when the prediction is 1,
+ * 1 - P(PCOS) when it is 0) — not max(p, 1-p), which would report the
+ * wrong side's probability whenever the threshold is not 0.5.</p>
  */
 @Service
 public class ModelStore {
@@ -46,34 +64,80 @@ public class ModelStore {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    private volatile Metrics metrics;
-    private volatile Preprocessing preprocessing;
-    private volatile Map<String, Object> models = Map.of();
-    private volatile boolean ready = false;
+    /**
+     * One immutable, fully-loaded set of artefacts. Swapped atomically:
+     * readers take the reference once and use it consistently, so a
+     * prediction never mixes metrics from one training run with models
+     * from another.
+     */
+    public record Snapshot(Metrics metrics, Preprocessing preprocessing,
+                           Map<String, Object> models, boolean ready) {}
+
+    private volatile Snapshot snapshot = new Snapshot(null, null, Map.of(), false);
+
+    /** External directory retraining writes to (see application.properties). */
+    @Value("${pcod.resources.dir:src/main/resources}")
+    private String resourcesDir;
 
     @PostConstruct
     public void init() {
-        try {
-            metrics = readClasspath("metrics.json", Metrics.class);
-            preprocessing = readClasspath("preprocessing.json", Preprocessing.class);
-            Map<String, Object> loaded = new LinkedHashMap<>();
-            for (Map.Entry<String, String> e : TrainingService.MODEL_FILES.entrySet()) {
-                try (InputStream is = getClass().getResourceAsStream("/models/" + e.getValue());
-                     ObjectInputStream ois = new ObjectInputStream(is)) {
-                    loaded.put(e.getKey(), ois.readObject());
-                }
+        Path external = Path.of(resourcesDir);
+        if (Files.isRegularFile(external.resolve("metrics.json"))) {
+            try {
+                snapshot = loadFromDirectory(external);
+                log.info("Loaded {} models from external resources dir {}; deployed model: {} (test accuracy {})",
+                        snapshot.models().size(), external, snapshot.metrics().bestModel,
+                        snapshot.metrics().bestModelTestAccuracy);
+                return;
+            } catch (Exception e) {
+                log.warn("External resources dir {} is unusable ({}); falling back to the "
+                        + "classpath artefacts baked into the jar.", external, e.toString());
             }
-            loadScreening(loaded, "/models/" + TrainingService.SCREENING_FILE, null);
-            models = loaded;
-            ready = true;
+        }
+        try {
+            snapshot = loadFromClasspath();
             log.info("Loaded {} models from classpath; deployed model: {} (test accuracy {})",
-                    loaded.size(), metrics.bestModel, metrics.bestModelTestAccuracy);
+                    snapshot.models().size(), snapshot.metrics().bestModel,
+                    snapshot.metrics().bestModelTestAccuracy);
         } catch (Exception e) {
-            ready = false;
+            snapshot = new Snapshot(null, null, Map.of(), false);
             log.warn("Models not loaded at startup (run the trainer first: "
                     + "mvn exec:java -Dexec.mainClass=com.pcod.trainer.ModelTrainer). "
                     + "/api/predict will return 503 until models are available. Cause: {}", e.toString());
         }
+    }
+
+    private Snapshot loadFromClasspath() throws IOException {
+        Metrics m = readClasspath("metrics.json", Metrics.class);
+        Preprocessing p = readClasspath("preprocessing.json", Preprocessing.class);
+        Map<String, Object> loaded = new LinkedHashMap<>();
+        for (Map.Entry<String, String> e : TrainingService.MODEL_FILES.entrySet()) {
+            try (InputStream is = getClass().getResourceAsStream("/models/" + e.getValue());
+                 ObjectInputStream ois = new ObjectInputStream(is)) {
+                loaded.put(e.getKey(), ois.readObject());
+            } catch (ClassNotFoundException ex) {
+                throw new IOException("Cannot deserialise model " + e.getValue(), ex);
+            }
+        }
+        loadScreening(loaded, "/models/" + TrainingService.SCREENING_FILE, null);
+        return new Snapshot(m, p, Map.copyOf(loaded), true);
+    }
+
+    private Snapshot loadFromDirectory(Path dir) throws IOException {
+        Metrics m = mapper.readValue(dir.resolve("metrics.json").toFile(), Metrics.class);
+        Preprocessing p = mapper.readValue(dir.resolve("preprocessing.json").toFile(), Preprocessing.class);
+        Map<String, Object> loaded = new LinkedHashMap<>();
+        for (Map.Entry<String, String> e : TrainingService.MODEL_FILES.entrySet()) {
+            Path f = dir.resolve("models").resolve(e.getValue());
+            try (InputStream is = Files.newInputStream(f);
+                 ObjectInputStream ois = new ObjectInputStream(is)) {
+                loaded.put(e.getKey(), ois.readObject());
+            } catch (ClassNotFoundException ex) {
+                throw new IOException("Cannot deserialise model " + f, ex);
+            }
+        }
+        loadScreening(loaded, null, dir.resolve("models").resolve(TrainingService.SCREENING_FILE));
+        return new Snapshot(m, p, Map.copyOf(loaded), true);
     }
 
     /** Loads the screening model if present (artefacts written before it existed have none). */
@@ -95,26 +159,18 @@ public class ModelStore {
         }
     }
 
-    /** Re-load metrics / preprocessing / models from a directory on disk (after retraining). */
+    /**
+     * Re-load metrics / preprocessing / models from a directory on disk
+     * (after retraining). Builds the whole snapshot first, then swaps it
+     * in with a single volatile assignment — in-flight predictions keep
+     * using the old snapshot until the swap, and never see a half-loaded
+     * one. Synchronised against concurrent reloads.
+     */
     public synchronized void reload(Path resourcesDir) throws IOException {
-        Metrics m = mapper.readValue(resourcesDir.resolve("metrics.json").toFile(), Metrics.class);
-        Preprocessing p = mapper.readValue(resourcesDir.resolve("preprocessing.json").toFile(), Preprocessing.class);
-        Map<String, Object> loaded = new LinkedHashMap<>();
-        for (Map.Entry<String, String> e : TrainingService.MODEL_FILES.entrySet()) {
-            Path f = resourcesDir.resolve("models").resolve(e.getValue());
-            try (InputStream is = Files.newInputStream(f);
-                 ObjectInputStream ois = new ObjectInputStream(is)) {
-                loaded.put(e.getKey(), ois.readObject());
-            } catch (ClassNotFoundException ex) {
-                throw new IOException("Cannot deserialise model " + f, ex);
-            }
-        }
-        loadScreening(loaded, null, resourcesDir.resolve("models").resolve(TrainingService.SCREENING_FILE));
-        metrics = m;
-        preprocessing = p;
-        models = loaded;
-        ready = true;
-        log.info("Reloaded {} models from {}; deployed model: {}", loaded.size(), resourcesDir, m.bestModel);
+        Snapshot next = loadFromDirectory(resourcesDir);
+        snapshot = next;
+        log.info("Reloaded {} models from {}; deployed model: {}",
+                next.models().size(), resourcesDir, next.metrics().bestModel);
     }
 
     private <T> T readClasspath(String name, Class<T> type) throws IOException {
@@ -127,15 +183,15 @@ public class ModelStore {
     }
 
     public boolean isReady() {
-        return ready;
+        return snapshot.ready();
     }
 
     public Metrics getMetrics() {
-        return metrics;
+        return snapshot.metrics();
     }
 
     public Preprocessing getPreprocessing() {
-        return preprocessing;
+        return snapshot.preprocessing();
     }
 
     /** Result of one prediction with the deployed model. */
@@ -144,11 +200,12 @@ public class ModelStore {
                              double threshold) {}
 
     /** P(PCOS) from one named model, using that model's own preprocessing + feature subset. */
-    private double probabilityFromModel(String name, double[] raw) {
-        Object model = models.get(name);
+    private double probabilityFromModel(Snapshot snap, String name, double[] raw) {
+        Object model = snap.models().get(name);
         if (model == null) {
             throw new IllegalStateException("Model not loaded: " + name);
         }
+        Metrics metrics = snap.metrics();
         Metrics.ModelMetrics mm = metrics.byName(name);
         Preprocessing prep = metrics.modelPreprocessing != null
                 ? metrics.modelPreprocessing.get(name) : null;
@@ -156,9 +213,10 @@ public class ModelStore {
                 ? mm.featureSubset : null;
         if (prep == null || subsetKeys == null) {
             // Fallback for artefacts written before per-model preprocessing existed.
-            prep = preprocessing;
-            subsetKeys = preprocessing.selectedFeatures != null && !preprocessing.selectedFeatures.isEmpty()
-                    ? preprocessing.selectedFeatures
+            prep = snap.preprocessing();
+            subsetKeys = snap.preprocessing().selectedFeatures != null
+                    && !snap.preprocessing().selectedFeatures.isEmpty()
+                    ? snap.preprocessing().selectedFeatures
                     : FeatureSpec.FEATURES.stream().map(FeatureSpec.Feature::key).toList();
         }
         double[] z = prep.transform(raw);
@@ -188,6 +246,16 @@ public class ModelStore {
     }
 
     /**
+     * Confidence = probability of the PREDICTED class. With a tuned
+     * threshold below 0.5 (screening: 0.25), max(p, 1-p) would report the
+     * probability of the class NOT predicted (e.g. p = 0.30 predicts PCOS
+     * but max() returns 70%, the No-PCOS side). This is the fix for that.
+     */
+    private static double confidenceFor(int prediction, double p1) {
+        return prediction == 1 ? p1 : 1.0 - p1;
+    }
+
+    /**
      * Predicts with the deployed (full) model. {@code raw} holds the 41 raw-scale
      * feature values (NaN = missing -> training mean). Applies the same
      * clip + standardisation as training, then the saved model, and decides
@@ -204,20 +272,22 @@ public class ModelStore {
      * in the request are simply ignored.
      */
     public Prediction predict(double[] raw, String mode) {
-        if (!ready) {
+        Snapshot snap = snapshot;
+        if (!snap.ready()) {
             throw new IllegalStateException("Models are not loaded yet — train first.");
         }
+        Metrics metrics = snap.metrics();
         if ("screening".equalsIgnoreCase(mode)) {
-            if (!models.containsKey(TrainingService.SCREENING_MODEL)) {
+            if (!snap.models().containsKey(TrainingService.SCREENING_MODEL)) {
                 throw new IllegalStateException("Screening model is not loaded — "
                         + "train again to create it (see README).");
             }
-            double p1 = probabilityFromModel(TrainingService.SCREENING_MODEL, raw);
+            double p1 = probabilityFromModel(snap, TrainingService.SCREENING_MODEL, raw);
             double threshold = metrics.screeningThreshold != null
                     ? metrics.screeningThreshold.threshold : 0.5;
             Metrics.ModelMetrics mm = metrics.byName(TrainingService.SCREENING_MODEL);
             int prediction = p1 >= threshold ? 1 : 0;
-            double confidence = Math.max(p1, 1.0 - p1);
+            double confidence = confidenceFor(prediction, p1);
             return new Prediction(
                     prediction,
                     prediction == 1 ? "PCOS Detected" : "No PCOS Detected",
@@ -231,16 +301,16 @@ public class ModelStore {
         if (VOTING.equals(metrics.bestModel)) {
             List<Double> probs = new ArrayList<>();
             for (String name : TrainingService.MODEL_FILES.keySet()) {
-                probs.add(probabilityFromModel(name, raw));
+                probs.add(probabilityFromModel(snap, name, raw));
             }
             p1 = probs.stream().mapToDouble(Double::doubleValue).average().orElse(0.5);
         } else {
-            p1 = probabilityFromModel(metrics.bestModel, raw);
+            p1 = probabilityFromModel(snap, metrics.bestModel, raw);
         }
         double threshold = metrics.deployedThreshold != null
                 ? metrics.deployedThreshold.threshold : 0.5;
         int prediction = p1 >= threshold ? 1 : 0;
-        double confidence = Math.max(p1, 1.0 - p1);
+        double confidence = confidenceFor(prediction, p1);
         return new Prediction(
                 prediction,
                 prediction == 1 ? "PCOS Detected" : "No PCOS Detected",

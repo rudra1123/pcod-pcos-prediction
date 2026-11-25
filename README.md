@@ -77,14 +77,14 @@ Full per-model details (ROC-AUC, PR-AUC, Brier score, confusion matrix,
 bootstrap 95% CI, ROC-curve points, thresholds): `backend/src/main/resources/metrics.json`
 and `backend/src/main/resources/models/MODEL_CARD.md`.
 
-| Model | Accuracy | Precision | Recall | F1 | ROC-AUC | TP/FP/FN/TN |
-|---|---|---|---|---|---|---|
-| **Soft Voting Ensemble — deployed** | **88.89%** | 89.66% | 74.29% | 81.25% | 0.925 | 26/3/9/70 |
-| Gradient Boosting (best single) | 88.89% | 87.10% | 77.14% | 81.82% | 0.933 | 27/4/8/69 |
-| Random Forest | 87.04% | 92.00% | 65.71% | 76.67% | 0.925 | 23/2/12/71 |
-| Bagging | 87.04% | 86.21% | 71.43% | 78.13% | 0.900 | 25/4/10/69 |
-| AdaBoost | 86.11% | 85.71% | 68.57% | 76.19% | 0.917 | 24/4/11/69 |
-| Gradient Boosting — Screening (23 non-invasive features) | 82.41% | 69.05% | **82.86%** | 75.32% | 0.886 | 29/13/6/60 |
+| Model | Accuracy | Precision | Recall | F1 | ROC-AUC | TP/FP/FN/TN | 95% CI |
+|---|---|---|---|---|---|---|---|
+| **Soft Voting Ensemble — deployed** | **88.89%** | 89.66% | 74.29% | 81.25% | 0.925 | 26/3/9/70 | 82.4–94.4% |
+| Gradient Boosting (best single) | 88.89% | 87.10% | 77.14% | 81.82% | 0.933 | 27/4/8/69 | 82.4–94.4% |
+| Random Forest | 87.04% | 92.00% | 65.71% | 76.67% | 0.925 | 23/2/12/71 | 79.6–93.5% |
+| Bagging | 87.04% | 86.21% | 71.43% | 78.13% | 0.900 | 25/4/10/69 | 80.6–92.6% |
+| AdaBoost | 86.11% | 85.71% | 68.57% | 76.19% | 0.917 | 24/4/11/69 | 78.7–92.6% |
+| Gradient Boosting — Screening (23 non-invasive features) | 82.41% | 69.05% | **82.86%** | 75.32% | 0.886 | 29/13/6/60 | 75.0–88.9% |
 
 Baselines (same split/CV): Majority class 67.59% · Logistic Regression 85.19% ·
 Decision Tree 82.41% · SVM (Linear) 83.33% · KNN 84.26%.
@@ -97,17 +97,36 @@ recall (threshold 0.25, tuned on CV only): recall rises from 60.00% to 82.86%.
 The screening model misses some cases that are only visible via follicle
 counts / AMH (e.g. sample patient 2) — documented in `backend/README.md`.
 
+**No refit on all 541 rows — by design:** the shipped models were trained on
+the 433-row train split only, so the reported test metrics describe the exact
+artefact being served. Refitting on all 541 rows after evaluation would use
+~25% more data but then the test metrics would no longer describe the shipped
+model — see `backend/README.md` (Limitations) and `MODEL_CARD.md`.
+
+**Follicle counts are near-diagnostic:** antral follicle counts differ
+sharply between the classes (follicleL mean 9.79 with PCOS vs 4.35 without;
+follicleR 10.76 vs 4.64) — Rotterdam-adjacent morphology features. The
+23-feature screening model (no follicle counts, no AMH, no labs) exists
+precisely to answer that, and still reaches 82.41% test accuracy with
+82.86% recall.
+
 ## How to run
 
 ### Option A — Docker Compose (one command)
 
 ```bash
 cd pcod-working-project
-export MYSQL_ROOT_PASSWORD='choose-a-strong-password'   # required, no default
-export ADMIN_KEY='your-admin-key'                        # optional, for POST /api/retrain
+# Required first: create a .env file with MYSQL_ROOT_PASSWORD and
+# ADMIN_KEY (both are required — the stack will not start without them).
 docker compose up --build
 # Frontend: http://localhost:5173   Backend: http://localhost:8080
 ```
+
+MySQL's port 3306 is **not** published to the host (the backend reaches it
+over the Compose network; use `docker exec -it pcod-mysql mysql -uroot -p`
+for host access). Retrained models are kept in the named volume
+`pcod-resources` (`/app/resources` in the backend container), so they
+survive container recreation.
 
 ### Option B — IntelliJ IDEA + MySQL (recommended for the viva demo)
 
@@ -151,11 +170,12 @@ API docs (Swagger UI): http://localhost:8080/swagger-ui.html
 | `GET /api/features` | The 41 features (`key, label, min, max, default, type, screening, required`) |
 | `GET /api/models` | All models with measured metrics, confusion matrices, ROC curves, thresholds |
 | `GET /api/models/{name}/importance` | Top feature importances (Random Forest / Gradient Boosting / screening) |
-| `POST /api/predict[?mode=full\|screening]` | Predict. 11 non-invasive fields are required (age, bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise); missing any → HTTP 400 listing them. Other missing fields are mean-imputed and counted in `imputedCount`. Empty `{}` → 400. |
-| `GET /api/predictions?limit=N` | Prediction history, latest first (needs MySQL) |
-| `GET /api/predictions/{id}` | One saved prediction |
-| `PATCH /api/predictions/{id}/outcome` | Set a doctor-verified outcome (`{"verifiedOutcome": 0\|1}`) — retraining uses only verified rows |
-| `POST /api/retrain` | Retrain all models (header `X-Admin-Key: $ADMIN_KEY`) |
+| `POST /api/predict[?mode=full\|screening]` | Predict. 11 non-invasive fields are required (age, bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise); missing any → HTTP 400 listing them. Other missing fields are mean-imputed and listed in `imputedFields` / counted in `imputedCount`. `confidence` is the probability of the predicted class. `modelAccuracy` is the model's test accuracy (108-row test set, with 95% CI + note) — it describes the model, not this prediction. A `warning` is added when 21+ fields were imputed. Empty `{}` → 400. |
+| `GET /api/predictions?limit=N` | Prediction history, latest first (needs MySQL + `X-Admin-Key` header; 401 without/wrong key, 503 if `ADMIN_KEY` is unset) |
+| `GET /api/predictions/{id}` | One saved prediction (needs MySQL + `X-Admin-Key`, same 401/503 rules) |
+| `PATCH /api/predictions/{id}/outcome` | Set a doctor-verified outcome (`{"verifiedOutcome": 0\|1}`) — retraining uses only verified rows, and only verified rows with no imputed fields. Needs the `X-Admin-Key` header. |
+| `POST /api/retrain` | Start a retrain in the background — returns **202 Accepted** with `{jobId, status: "RUNNING", statusUrl}` (header `X-Admin-Key: $ADMIN_KEY`; 409 if a retrain is already running) |
+| `GET /api/retrain/status` / `GET /api/retrain/{jobId}` | Retrain job status (`RUNNING` / `DONE` / `FAILED` + metrics summary). Needs the `X-Admin-Key` header. |
 
 ### Example — predict (sample patient 2, a true PCOS case)
 
@@ -166,7 +186,7 @@ curl -X POST http://localhost:8080/api/predict -H 'Content-Type: application/jso
 Response (verified live):
 
 ```json
-{"prediction":1,"label":"PCOS Detected","probability":0.8566,"confidence":0.8566,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"mode":"full","threshold":0.5,"imputedCount":0,"imputedOf":41}
+{"prediction":1,"label":"PCOS Detected","probability":0.8566,"confidence":0.8566,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.5,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
 ```
 
 Sample patient 1 (true label 0) predicts `0` with probability `0.099`.
@@ -177,7 +197,7 @@ visible via follicle counts / AMH. That is the honest trade-off of screening.
 ### Tests
 
 ```bash
-cd backend && mvn test   # 33 tests, 0 failures (2 live-MySQL tests skip when MySQL is unreachable)
+cd backend && mvn test   # 52 tests, 0 failures (2 live-MySQL tests skip when MySQL is unreachable)
 cd frontend && npm run build   # 0 errors
 ```
 
@@ -201,7 +221,7 @@ see `backend/README.md`.
 ## Limitations (honest)
 
 - 541 patients is a small dataset; the 99% accuracy target was not reached
-  (best measured test accuracy 88.89%). A larger verified labelled dataset
+  (best measured test accuracy 88.89%, 95% CI 82.4–94.4%). A larger verified labelled dataset
   would be needed to do better — none compatible was publicly available.
 - The screening (non-invasive) model is less accurate (82.41%) and misses
   cases that need lab/ultrasound findings.

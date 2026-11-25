@@ -80,4 +80,19 @@ class PredictionRecordRepositoryTest {
         assertEquals(a.getId(), verified.get(0).getId());
         assertEquals(1, verified.get(0).getVerifiedOutcome());
     }
+
+    @Test
+    void imputedFieldsJsonRoundTrips() {
+        PredictionRecord r = record(1, "PCOS Detected");
+        r.setImputedFieldsJson("[\"amh\",\"tsh\"]");
+        PredictionRecord saved = repository.save(r);
+
+        PredictionRecord found = repository.findById(saved.getId()).orElseThrow();
+        assertEquals("[\"amh\",\"tsh\"]", found.getImputedFieldsJson());
+
+        // A record saved without imputed-fields info keeps a null list
+        // (rows written before tracking existed).
+        PredictionRecord legacy = repository.save(record(0, "No PCOS Detected"));
+        assertNull(repository.findById(legacy.getId()).orElseThrow().getImputedFieldsJson());
+    }
 }

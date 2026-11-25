@@ -7,6 +7,7 @@
 CREATE TABLE IF NOT EXISTS prediction_records (
     id               BIGINT       NOT NULL AUTO_INCREMENT,
     features_json    TEXT         NOT NULL,
+    imputed_fields_json TEXT      NULL,
     prediction       INT          NOT NULL,
     label            VARCHAR(32)  NOT NULL,
     probability      DOUBLE       NOT NULL,
@@ -18,3 +19,5 @@ CREATE TABLE IF NOT EXISTS prediction_records (
     PRIMARY KEY (id),
     INDEX idx_prediction_records_created_at (created_at)
 );
+-- Existing deployments (table created before imputed_fields_json existed):
+--   ALTER TABLE prediction_records ADD COLUMN imputed_fields_json TEXT NULL;

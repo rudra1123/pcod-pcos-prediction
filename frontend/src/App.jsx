@@ -265,6 +265,18 @@ export default function App() {
   const [fieldErrors, setFieldErrors] = useState({})
   const [loadedSample, setLoadedSample] = useState(SAMPLE_PCOS.name)
   const [cmModelName, setCmModelName] = useState('')
+  // Prediction mode for the form: "full" (41-feature deployed model) or
+  // "screening" (23 non-invasive features). Sent as ?mode= to /api/predict.
+  const [predictMode, setPredictMode] = useState('full')
+  // Prediction history (admin-only): the admin key lives in component
+  // state only — it is never written to localStorage or any other storage.
+  const [adminKey, setAdminKey] = useState('')
+  const [history, setHistory] = useState(null)
+  const [historyError, setHistoryError] = useState('')
+  const [historyLoading, setHistoryLoading] = useState(false)
+  // Per-row verified-outcome selection for the history table (id -> "0" | "1").
+  const [verifyValues, setVerifyValues] = useState({})
+  const [verifyBusy, setVerifyBusy] = useState({})
 
   const featureByKey = useMemo(() => {
     const map = {}
@@ -504,7 +516,7 @@ export default function App() {
 
     setPredicting(true)
     try {
-      const res = await fetch(`${API_BASE}/api/predict`, {
+      const res = await fetch(`${API_BASE}/api/predict?mode=${predictMode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -544,11 +556,81 @@ export default function App() {
     window.print()
   }
 
+  // --- Prediction history (admin key) ------------------------------------
+  async function loadHistory() {
+    setHistoryError('')
+    setHistory(null)
+    if (!adminKey) {
+      setHistoryError('Enter the admin key (ADMIN_KEY) to view prediction history — history is admin-only.')
+      return
+    }
+    setHistoryLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/predictions?limit=20`, {
+        headers: { 'X-Admin-Key': adminKey },
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(
+          data?.error || `History request failed (HTTP ${res.status}).`,
+        )
+      }
+      setHistory(Array.isArray(data) ? data : [])
+    } catch (err) {
+      setHistoryError(
+        err.message && err.message.includes('Failed to fetch')
+          ? `${BACKEND_DOWN_MSG} (Could not reach ${API_BASE || ''}/api/predictions.)`
+          : `Could not load history: ${err.message || err}`,
+      )
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  async function verifyOutcome(id) {
+    const value = verifyValues[id]
+    if (value !== '0' && value !== '1') {
+      setHistoryError(`Choose 0 (no PCOS) or 1 (PCOS confirmed) for prediction #${id} first.`)
+      return
+    }
+    setHistoryError('')
+    setVerifyBusy((prev) => ({ ...prev, [id]: true }))
+    try {
+      const res = await fetch(`${API_BASE}/api/predictions/${id}/outcome`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+        body: JSON.stringify({ verifiedOutcome: Number(value) }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(data?.error || `Verify failed (HTTP ${res.status}).`)
+      }
+      setHistory((prev) =>
+        prev ? prev.map((r) => (r.id === id ? { ...r, verifiedOutcome: data.verifiedOutcome, verifiedAt: data.verifiedAt } : r)) : prev,
+      )
+    } catch (err) {
+      setHistoryError(`Could not record the verified outcome: ${err.message || err}`)
+    } finally {
+      setVerifyBusy((prev) => ({ ...prev, [id]: false }))
+    }
+  }
+
+  // The deployed model is the one the BACKEND chose on train CV
+  // (metrics.bestModel), matched by name — never the highest test
+  // accuracy. Gradient Boosting and the Soft Voting Ensemble tie on test
+  // accuracy (both 88.89%), and picking by test accuracy would put the
+  // star on the wrong model. Falls back to test accuracy only when the
+  // backend does not expose /api/metrics.
   const bestModel = useMemo(() => {
     if (!models) return null
+    const deployedName = metricsExtra?.bestModel
+    if (deployedName) {
+      const match = models.find((m) => m.name === deployedName)
+      if (match) return match
+    }
     return models.reduce((best, m) =>
       Number(m.accuracy ?? 0) > Number(best.accuracy ?? 0) ? m : best, models[0])
-  }, [models])
+  }, [models, metricsExtra])
 
   // --- Metrics section data (all backend-provided, or absent) -------------
   const hasAuc = models ? models.some((m) => modelAuc(m) !== null) : false
@@ -771,6 +853,36 @@ export default function App() {
               </fieldset>
             ))}
 
+            <div className="mode-toggle" role="group" aria-label="Prediction mode">
+              <span className="mode-toggle-label">Prediction mode:</span>
+              <label>
+                <input
+                  type="radio"
+                  name="predict-mode"
+                  value="full"
+                  checked={predictMode === 'full'}
+                  onChange={() => setPredictMode('full')}
+                />
+                {' '}Full — all 41 features (deployed model)
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="predict-mode"
+                  value="screening"
+                  checked={predictMode === 'screening'}
+                  onChange={() => setPredictMode('screening')}
+                />
+                {' '}Screening — 23 non-invasive features only
+              </label>
+              <p className="muted mode-toggle-note">
+                Screening needs no lab or ultrasound values — any of those
+                entered above are ignored in screening mode. The screening
+                model is less accurate (test accuracy 82.4%, 95% CI 75.0–88.9%)
+                but catches more cases (recall 82.9%).
+              </p>
+            </div>
+
             <button type="submit" className="predict-btn" disabled={predicting}>
               {predicting ? 'Predicting…' : 'Predict'}
             </button>
@@ -808,12 +920,21 @@ export default function App() {
               <p className="result-model">
                 Model: <strong>{result.model || '—'}</strong>
                 {result.modelAccuracy !== undefined && result.modelAccuracy !== null
-                  ? ` — accuracy ${pct(result.modelAccuracy)}`
+                  ? ` — test accuracy ${pct(result.modelAccuracy)}`
+                  : ''}
+                {result.modelAccuracyCiLow !== undefined && result.modelAccuracyCiHigh !== undefined
+                  ? ` (95% CI ${pct(result.modelAccuracyCiLow)}–${pct(result.modelAccuracyCiHigh)})`
                   : ''}
                 {result.mode || result.screeningMode
                   ? ` — mode: ${result.mode || (result.screeningMode ? 'screening' : '')}`
                   : ''}
               </p>
+              {(result.modelAccuracyNote || result.modelAccuracy !== undefined) && (
+                <p className="muted result-accuracy-note">
+                  {result.modelAccuracyNote ||
+                    'Test accuracy describes the model on its 108-row held-out test set — not this individual prediction.'}
+                </p>
+              )}
               <p className="result-imputed">
                 {imputedCount} of {N_FEATURES} fields were imputed
                 <span className="muted"> ({imputedSource}).</span>
@@ -821,7 +942,12 @@ export default function App() {
                   ? ' All values were entered, so no training-mean filling was needed.'
                   : ' Missing values were filled with the training average.'}
               </p>
-              {imputedCount >= HIGH_IMPUTATION && (
+              {result.warning && (
+                <p className="result-warning" role="alert">
+                  ⚠ {result.warning}
+                </p>
+              )}
+              {!result.warning && imputedCount >= HIGH_IMPUTATION && (
                 <p className="result-warning" role="alert">
                   ⚠ More than half the fields were imputed — this result rests
                   mostly on average values, not on the patient&apos;s own data.
@@ -923,9 +1049,9 @@ export default function App() {
           ) : (
             <p className="muted">
               {modelsError || 'Loading models…'}
-              {' '}Best model: Gradient Boosting
-              (91.7% accuracy, F1 92%). The full comparison table loads here
-              automatically once the backend is running.
+              {' '}Deployed model: Soft Voting Ensemble — test accuracy 88.9%
+              (95% CI 82.4–94.4%, test set n = 108). The full comparison table
+              loads here automatically once the backend is running.
             </p>
           )}
 
@@ -1007,6 +1133,93 @@ export default function App() {
             the target column excluded).
           </p>
         </section>
+
+        <section className="card">
+          <h2>Prediction history (admin only)</h2>
+          <p className="muted">
+            Saved predictions, latest first. History contains patient health
+            data, so it needs the admin key (ADMIN_KEY) — the key is kept in
+            this page&apos;s memory only and is never stored in the browser.
+            A doctor can record a verified outcome per row; only verified rows
+            with no imputed fields are ever used for retraining.
+          </p>
+          <div className="admin-key-row">
+            <label>
+              Admin key:{' '}
+              <input
+                type="password"
+                value={adminKey}
+                onChange={(e) => setAdminKey(e.target.value)}
+                placeholder="ADMIN_KEY"
+                autoComplete="off"
+              />
+            </label>
+            <button type="button" onClick={loadHistory} disabled={historyLoading}>
+              {historyLoading ? 'Loading…' : 'Load history'}
+            </button>
+          </div>
+          {historyError && (
+            <div className="banner banner-error" role="alert">{historyError}</div>
+          )}
+          {history && history.length === 0 && (
+            <p className="muted">No predictions saved yet.</p>
+          )}
+          {history && history.length > 0 && (
+            <table className="models-table history-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Date</th>
+                  <th>Prediction</th>
+                  <th>Probability</th>
+                  <th>Model</th>
+                  <th>Imputed</th>
+                  <th>Verified outcome</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.id}</td>
+                    <td>{r.createdAt ? new Date(r.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</td>
+                    <td>{r.label || (r.prediction === 1 ? 'PCOS Detected' : 'No PCOS Detected')}</td>
+                    <td>{pct(r.probability) ?? '—'}</td>
+                    <td>{r.model || '—'}</td>
+                    <td>{Array.isArray(r.imputedFields) ? r.imputedFields.length : '—'}</td>
+                    <td>
+                      {r.verifiedOutcome === 0 || r.verifiedOutcome === 1 ? (
+                        <span>
+                          {r.verifiedOutcome === 1 ? 'PCOS confirmed' : 'No PCOS'}
+                          {r.verifiedAt ? ` (${new Date(r.verifiedAt).toLocaleDateString('en-IN')})` : ''}
+                        </span>
+                      ) : (
+                        <span className="verify-row">
+                          <select
+                            value={verifyValues[r.id] ?? ''}
+                            onChange={(e) => setVerifyValues((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                            aria-label={`Verified outcome for prediction ${r.id}`}
+                          >
+                            <option value="">— select —</option>
+                            <option value="0">0 — No PCOS</option>
+                            <option value="1">1 — PCOS confirmed</option>
+                          </select>
+                          <button
+                            type="button"
+                            className="secondary"
+                            onClick={() => verifyOutcome(r.id)}
+                            disabled={verifyBusy[r.id]}
+                          >
+                            {verifyBusy[r.id] ? 'Saving…' : 'Verify'}
+                          </button>
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
       </main>
 
       <footer className="footer">
@@ -1028,9 +1241,13 @@ export default function App() {
           <p>
             Model: {result.model || '—'}
             {result.modelAccuracy !== undefined && result.modelAccuracy !== null
-              ? ` — accuracy ${pct(result.modelAccuracy)}`
+              ? ` — test accuracy ${pct(result.modelAccuracy)}`
+              : ''}
+            {result.modelAccuracyCiLow !== undefined && result.modelAccuracyCiHigh !== undefined
+              ? ` (95% CI ${pct(result.modelAccuracyCiLow)}–${pct(result.modelAccuracyCiHigh)}, test set n = 108)`
               : ''}
           </p>
+          {result.warning && <p>Warning: {result.warning}</p>}
           <p>
             {imputedCount} of {N_FEATURES} fields were imputed ({imputedSource}).
             Missing values were filled with the training average.

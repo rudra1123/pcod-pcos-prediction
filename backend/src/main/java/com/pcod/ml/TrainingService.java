@@ -42,7 +42,7 @@ import java.util.stream.LongStream;
  * Random Forest, Bagging (see {@link BaggingClassifier}), AdaBoost and
  * Gradient Boosting.
  *
- * <h2>Honest evaluation protocol (no leakage, no test-set tuning)</h2>
+ * <h2>Honest evaluation protocol (test set never touched before final evaluation)</h2>
  * <ol>
  *   <li>Stratified 80/20 train/test split, seed 42. The test split is touched
  *       exactly ONCE, at the very end, to measure the final models.</li>
@@ -52,8 +52,15 @@ import java.util.stream.LongStream;
  *   <li>Preprocessing (mean imputation, 1st/99th-percentile clipping,
  *       standardisation) is fitted on training data only — inside CV, it is
  *       re-fitted on each fold's training part, never on the validation fold.
- *       Feature ranking (Random Forest importance) is computed on the train
- *       split only.</li>
+ *       Feature ranking (Random Forest importance) is likewise re-computed
+ *       inside every CV fold, on that fold's training part only, when
+ *       feature subsets are compared — so subset selection never sees a
+ *       validation fold. The full-train ranking is used only to build the
+ *       final model's feature list once a subset size has won. (An earlier
+ *       version ranked once on the whole train split and reused that ranking
+ *       for every fold; that made the CV scores of the smaller subsets
+ *       slightly optimistic, because the ranking had seen the validation
+ *       rows. The test split was never involved in either version.)</li>
  *   <li>The deployed model is the one with the best <b>train CV</b> accuracy
  *       (single model or soft-voting ensemble, whichever wins on CV). Test
  *       metrics are reported for every model, honestly, whatever they are.
@@ -129,16 +136,17 @@ public class TrainingService {
 
     /** Loads the dataset. Drops Sl. No / Patient File No. / Unnamed: 44, keeps the 41 features + target. */
     public List<Row> loadCsv(Path csvPath) throws IOException {
+        malformedCellsThisLoad = 0;
         List<Row> rows = new ArrayList<>();
         try (BufferedReader br = Files.newBufferedReader(csvPath)) {
             String headerLine = br.readLine();
             if (headerLine == null) {
                 throw new IOException("Empty CSV: " + csvPath);
             }
-            String[] rawHeaders = headerLine.split(",", -1);
+            List<String> rawHeaders = splitCsvLine(headerLine);
             Map<String, Integer> col = new LinkedHashMap<>();
-            for (int i = 0; i < rawHeaders.length; i++) {
-                col.put(rawHeaders[i].trim(), i);
+            for (int i = 0; i < rawHeaders.size(); i++) {
+                col.put(rawHeaders.get(i).trim(), i);
             }
             int[] featureCols = new int[FeatureSpec.N_FEATURES];
             for (int j = 0; j < FeatureSpec.N_FEATURES; j++) {
@@ -159,17 +167,60 @@ public class TrainingService {
                 if (line.isBlank()) {
                     continue;
                 }
-                String[] cells = line.split(",", -1);
+                List<String> cells = splitCsvLine(line);
                 double[] x = new double[FeatureSpec.N_FEATURES];
                 for (int j = 0; j < FeatureSpec.N_FEATURES; j++) {
-                    String v = featureCols[j] < cells.length ? cells[featureCols[j]].trim() : "";
+                    String v = featureCols[j] < cells.size() ? cells.get(featureCols[j]).trim() : "";
                     x[j] = parseCell(v, featureCols[j]);
                 }
-                int y = Integer.parseInt(cells[targetCol].trim());
+                int y = Integer.parseInt(cells.get(targetCol).trim());
                 rows.add(new Row(x, y));
             }
         }
         return rows;
+    }
+
+    /**
+     * Splits one CSV line into fields, honouring RFC 4180 double-quoted
+     * fields: a comma inside quotes does not split the field, and a
+     * doubled quote ("") inside a quoted field is one literal quote.
+     * A quote at the start of a field opens a quoted field; a quote in the
+     * middle of a field is kept literally (lenient, like most parsers).
+     * Written inline — no new CSV dependency. (The old code used
+     * {@code String.split(",")}, which broke on quoted commas.)
+     */
+    public static List<String> splitCsvLine(String line) {
+        List<String> fields = new ArrayList<>();
+        StringBuilder cur = new StringBuilder();
+        boolean inQuotes = false;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (inQuotes) {
+                if (c == '"') {
+                    if (i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                        cur.append('"');
+                        i++;
+                    } else {
+                        inQuotes = false;
+                    }
+                } else {
+                    cur.append(c);
+                }
+            } else if (c == '"') {
+                if (cur.length() == 0) {
+                    inQuotes = true;
+                } else {
+                    cur.append(c);
+                }
+            } else if (c == ',') {
+                fields.add(cur.toString());
+                cur.setLength(0);
+            } else {
+                cur.append(c);
+            }
+        }
+        fields.add(cur.toString());
+        return fields;
     }
 
     /**
@@ -179,10 +230,19 @@ public class TrainingService {
      * letter). A trailing dot is stripped ("1.99." -&gt; 1.99); any other
      * unparseable value is treated as missing (NaN) and mean-imputed, and
      * counted in the log — never silently dropped, never invented.
+     *
+     * <p>The malformed-cell count is per {@link #loadCsv(Path)} call
+     * ({@link #malformedCellsThisLoad}, reset at the start of each load) —
+     * never a static accumulator across retrains.</p>
      */
-    private static int malformedCells = 0;
+    private int malformedCellsThisLoad = 0;
 
-    private static double parseCell(String v, int col) {
+    /** Malformed numeric cells found by the most recent {@link #loadCsv(Path)} call. */
+    public int malformedCells() {
+        return malformedCellsThisLoad;
+    }
+
+    private double parseCell(String v, int col) {
         if (v == null || v.isEmpty()) {
             return Double.NaN;
         }
@@ -195,7 +255,7 @@ public class TrainingService {
                 System.out.printf("Cleaned malformed cell (col %d): %s -> %s%n", col, v, cleaned);
                 return d;
             } catch (NumberFormatException e2) {
-                malformedCells++;
+                malformedCellsThisLoad++;
                 System.out.printf("Malformed numeric cell treated as missing (col %d): '%s'%n", col, v);
                 return Double.NaN;
             }
@@ -1241,6 +1301,70 @@ public class TrainingService {
         return order;
     }
 
+    /**
+     * Feature rankings, one per CV fold, each computed on that fold's
+     * TRAINING part only (Random Forest importance). Subset candidates are
+     * compared with these per-fold rankings, so the ranking for a fold
+     * never sees that fold's validation rows — subset selection cannot leak
+     * validation information into a CV score. (Ranking once on the whole
+     * train split and reusing it for every fold would make the CV scores
+     * of the smaller subsets slightly optimistic.)
+     */
+    public List<List<Integer>> foldRankings(List<Row> trainRows) {
+        List<List<Row>> folds = stratifiedFolds(trainRows, CV_FOLDS, SEED);
+        List<List<Integer>> out = new ArrayList<>();
+        for (int f = 0; f < CV_FOLDS; f++) {
+            List<Row> foldTrain = new ArrayList<>();
+            for (int g = 0; g < CV_FOLDS; g++) {
+                if (g != f) {
+                    foldTrain.addAll(folds.get(g));
+                }
+            }
+            out.add(rankFeaturesByImportance(foldTrain));
+        }
+        return out;
+    }
+
+    /**
+     * 5-fold CV accuracy of one config whose feature subset is the top-k of
+     * the PER-FOLD ranking (see {@link #foldRankings(List)}): in each fold
+     * the subset is built from that fold's training rows only, then the
+     * model is trained on the fold-train subset and evaluated on the
+     * validation fold. Preprocessing is re-fitted inside every fold, as in
+     * {@link #cvAccuracy(ModelConfig, List)}.
+     */
+    public double cvAccuracyTopK(ModelConfig base, List<Row> trainRows, int topK,
+                                 List<List<Integer>> foldRankings) {
+        List<List<Row>> folds = stratifiedFolds(trainRows, CV_FOLDS, SEED);
+        double correct = 0;
+        int total = 0;
+        for (int f = 0; f < CV_FOLDS; f++) {
+            List<Row> val = folds.get(f);
+            List<Row> foldTrain = new ArrayList<>();
+            for (int g = 0; g < CV_FOLDS; g++) {
+                if (g != f) {
+                    foldTrain.addAll(folds.get(g));
+                }
+            }
+            if (base.oversample()) {
+                foldTrain = oversample(foldTrain, SEED + f);
+            }
+            List<Integer> ranking = foldRankings.get(f);
+            int[] subset = ranking.subList(0, Math.min(topK, ranking.size()))
+                    .stream().mapToInt(Integer::intValue).toArray();
+            ModelConfig cfg = new ModelConfig(base.model(), base.params(), subset,
+                    base.clip(), base.oversample());
+            Preprocessing prep = fitPreprocessing(foldTrain, foldTrain, cfg.clip());
+            DataFrame trainDf = toDataFrame(foldTrain, prep, cfg.features());
+            DataFrame valDf = toDataFrame(val, prep, cfg.features());
+            Object model = trainOne(cfg, trainDf, SEED + f);
+            Metrics.ModelMetrics m = evaluate(cfg.model(), predictorFor(model), valDf);
+            correct += m.accuracy * valDf.size();
+            total += valDf.size();
+        }
+        return correct / total;
+    }
+
     // ---------------------------------------------------------------- training
 
     /** Plain CSV run (no verified history rows). */
@@ -1267,8 +1391,8 @@ public class TrainingService {
     public TrainingResult train(Path csvPath, Path resourcesDir, List<Row> extraVerifiedRows) throws IOException {
         MathEx.setSeed(SEED); // Smile's global RNG — reproducible training.
         List<Row> all = loadCsv(csvPath);
-        if (malformedCells > 0) {
-            System.out.println("Malformed numeric cells treated as missing (mean-imputed): " + malformedCells);
+        if (malformedCells() > 0) {
+            System.out.println("Malformed numeric cells treated as missing (mean-imputed): " + malformedCells());
         }
         if (all.size() != 541) {
             System.out.println("WARNING: expected 541 rows, found " + all.size());
@@ -1286,16 +1410,19 @@ public class TrainingService {
                 all.size(), (int) all.stream().filter(r -> r.y() == 0).count(),
                 (int) all.stream().filter(r -> r.y() == 1).count(), train.size(), test.size(), SEED);
 
-        // ---- Stage 0: feature ranking on TRAIN only.
+        // ---- Stage 0: feature rankings.
+        // The FULL-train ranking is used ONLY to build the final model's
+        // feature list once a subset size has won on CV. Subset CANDIDATES
+        // are compared by CV with per-fold rankings (perFoldRankings):
+        // the ranking used to compare subsets never sees a validation fold,
+        // so subset selection cannot leak validation information into the
+        // CV score. The rankings are computed once here (5 Random Forest
+        // fits on fold-train data) and reused for every model — that is
+        // memoisation of the same fold's ranking, not leakage: each fold's
+        // ranking still uses only that fold's training rows.
         List<Integer> ranked = rankFeaturesByImportance(train);
-        int[][] subsets = {
-                allFeatures(),
-                ranked.subList(0, 25).stream().mapToInt(Integer::intValue).toArray(),
-                ranked.subList(0, 20).stream().mapToInt(Integer::intValue).toArray(),
-                ranked.subList(0, 15).stream().mapToInt(Integer::intValue).toArray(),
-                ranked.subList(0, 10).stream().mapToInt(Integer::intValue).toArray(),
-        };
-        String[] subsetNames = {"all-41", "top-25", "top-20", "top-15", "top-10"};
+        List<List<Integer>> perFoldRankings = foldRankings(train);
+        int[] topK = {25, 20, 15, 10};
 
         // ---- Stage A+B: per model — best hyperparameters (CV, all features),
         // then best feature subset + clipping (CV, best hyperparameters).
@@ -1315,13 +1442,18 @@ public class TrainingService {
                 }
             }
             // Feature subsets + clipping, at the best hyperparameters.
-            for (int s = 1; s < subsets.length; s++) {
+            // Each top-k is scored by CV with the ranking re-computed inside
+            // each fold (cvAccuracyTopK); the stored winner uses the
+            // full-train ranking for its final feature list.
+            for (int k : topK) {
                 for (boolean clip : new boolean[]{true, false}) {
-                    ModelConfig cfg = new ModelConfig(name, best.config().params(), subsets[s], clip);
-                    double cv = cvAccuracy(cfg, train);
-                    log.add(cfg.describe() + " (" + subsetNames[s] + ", clip=" + clip + ") -> CV accuracy "
-                            + String.format("%.4f", cv));
-                    System.out.printf("[CV] %-18s top-%d clip=%-5s %.4f%n", name, subsets[s].length, clip, cv);
+                    ModelConfig probe = new ModelConfig(name, best.config().params(), allFeatures(), clip);
+                    double cv = cvAccuracyTopK(probe, train, k, perFoldRankings);
+                    int[] subset = ranked.subList(0, k).stream().mapToInt(Integer::intValue).toArray();
+                    ModelConfig cfg = new ModelConfig(name, best.config().params(), subset, clip);
+                    log.add(cfg.describe() + " (top-" + k + " per-fold ranking, clip=" + clip
+                            + ") -> CV accuracy " + String.format("%.4f", cv));
+                    System.out.printf("[CV] %-18s top-%d (per-fold) clip=%-5s %.4f%n", name, k, clip, cv);
                     if (cv > best.cvAccuracy()) {
                         best = new TunedModel(cfg, cv);
                     }
@@ -1443,7 +1575,8 @@ public class TrainingService {
         metrics.generatedAt = LocalDateTime.now().toString();
         metrics.cvFolds = CV_FOLDS;
         metrics.tuningMethod = "5-fold stratified CV on the TRAIN split only (seed 42). "
-                + "Hyperparameter grid + feature-subset (RF importance on train) + clipping on/off compared by CV. "
+                + "Hyperparameter grid + feature-subset (RF importance re-ranked inside each CV fold, "
+                + "on the fold's training rows only) + clipping on/off compared by CV. "
                 + "Test split evaluated exactly once, after all tuning. Preprocessing re-fitted inside every CV fold. "
                 + "Baselines and the screening model use the same split and the same train-only CV protocol. "
                 + "Decision thresholds are tuned on train CV out-of-fold probabilities only, never on the test set.";

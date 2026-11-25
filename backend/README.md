@@ -158,13 +158,18 @@ verified 541 rows only, and no larger patient count is claimed anywhere.
   100–300 bootstrap trees, depth 10/20, node size 1/5; AdaBoost: 15 configs
   — 100–500 rounds, depth 1–3; Gradient Boosting: 16 configs — 200–800
   trees, depth 2/5, shrinkage 0.03–0.1, subsample 0.7–1.0), feature subsets
-  from a Random Forest importance ranking computed on train only (all 41,
-  top 25/20/15/10), clipping on/off, and minority-class random oversampling
+  from Random Forest importance rankings re-computed inside each CV fold
+  (ranked on that fold's training part only; all 41, top 25/20/15/10),
+  clipping on/off, and minority-class random oversampling
   on/off (applied to training folds only); baselines: Logistic Regression
   (lambda 0.01/0.1/1.0), single Decision Tree (4 depth/node-size combos),
   linear SVM (C 0.1/1.0/10.0), KNN (k 3/5/9/15); screening Gradient
   Boosting (6 configs on the 23 non-invasive features). Full per-candidate
-  log: `metrics.json` → `cvLog`.
+  log: `metrics.json` → `cvLog`. An earlier version ranked once on the
+  whole train split before CV, which made the subset CV scores slightly
+  optimistic (the test split was never involved in either version); the
+  ranking is now re-computed per fold. The all-41 subset still wins for
+  every model, so no deployed number changed.
 - **Bagging:** Smile 3.1.1 ships no Bagging classifier, so it is implemented
   here from its definition (`BaggingClassifier.java`): bootstrap-sampled
   Smile decision trees with majority vote; the vote fraction is the
@@ -302,14 +307,56 @@ appends them to the training split only (the test split never changes),
 and records how many were used in `metrics.json` → `verifiedRowsUsed`
 (0 in the shipped run — no verified rows existed yet).
 
-### Admin key for retraining
+A verified row is used only if its stored inputs are complete: each
+prediction record stores which fields were mean-imputed at prediction
+time (`imputed_fields_json` column, also returned as `imputedFields` in
+the history JSON). **Verified rows with any imputed field are excluded
+from retraining** — a doctor can verify the outcome, but the stored
+feature values for the imputed fields are training averages, not the
+patient's real values, so treating them as ground truth would teach the
+model fake data. Rows written before this field was tracked (null) are
+excluded too, for the same reason: they cannot be proven complete.
 
-`POST /api/retrain` requires the `X-Admin-Key` header. The key comes from
-the `ADMIN_KEY` environment variable (`pcod.admin.key=${ADMIN_KEY:}`).
-Without the header, or with the wrong key, it returns 401. If `ADMIN_KEY`
-is unset the endpoint is unprotected and the app logs a warning at startup
-— set a key on any shared machine. Never hard-code a real secret in the
-code or in `application.properties`.
+### Admin key — fail-closed protection for history and retraining
+
+Patient history and retraining are protected by the `X-Admin-Key` header.
+The key comes from the `ADMIN_KEY` environment variable
+(`pcod.admin.key=${ADMIN_KEY:}`). Protected endpoints:
+
+- `GET /api/predictions`, `GET /api/predictions/{id}` (patient health data)
+- `PATCH /api/predictions/{id}/outcome` (retraining data — an open endpoint
+  would let anyone poison future models with false verified outcomes)
+- `POST /api/retrain`, `GET /api/retrain/status`, `GET /api/retrain/{jobId}`
+
+Without the header, or with the wrong key, a protected endpoint returns
+401. **If `ADMIN_KEY` is unset, every protected endpoint refuses with 503
+(fail-closed)** — the app logs an ERROR at startup and the endpoints stay
+disabled until the key is set and the app restarted. There is no
+"unprotected" mode: an earlier version only warned and left retraining
+open, which was a security hole. `docker-compose.yml` requires `ADMIN_KEY`
+(` ${ADMIN_KEY:?set ADMIN_KEY in .env}`) so the stack cannot start without
+one. Never hard-code a real secret in the code or in
+`application.properties`.
+
+Retraining is asynchronous: `POST /api/retrain` returns **202 Accepted**
+immediately with `{jobId, status: "RUNNING", statusUrl}` and trains on a
+background thread (about 2.5–12 minutes), so the HTTP request never times
+out. Poll `GET /api/retrain/status` (or `GET /api/retrain/{jobId}`) for
+`RUNNING` / `DONE` / `FAILED` plus the resulting metrics summary
+(`bestModel`, `bestModelTestAccuracy`, `verifiedRowsUsed`, `generatedAt`).
+A second retrain while one is running is rejected with **409**. When a
+retrain finishes, the new models are loaded from the external resources
+directory (see below) and served without a restart.
+
+Retrained artefacts are written to the external resources directory
+(`PCOD_RESOURCES_DIR` / `pcod.resources.dir`, default
+`src/main/resources` when running from source) and **loaded from that
+directory first at startup** — a restart after retraining serves the new
+models instead of the ones baked into the jar. In Docker Compose the
+directory is a named volume (`pcod-resources`, mounted at
+`/app/resources`), so retrained artefacts survive container recreation.
+If the external directory has no `metrics.json` (or is corrupt), the app
+falls back to the models baked into the jar and logs a warning.
 
 ### Privacy
 
@@ -338,7 +385,7 @@ cd pcod-working-project/backend
 #    Takes ~12 minutes: 5-fold CV over 81 candidate configurations.
 mvn exec:java -Dexec.mainClass=com.pcod.trainer.ModelTrainer
 
-# 2. Build + test (33 tests: 31 pass, 2 skipped when MySQL is unreachable
+# 2. Build + test (52 tests: 50 pass, 2 skipped when MySQL is unreachable
 #    — see "Tests" below).
 mvn clean package
 
@@ -369,23 +416,29 @@ java -jar target/pcod-prediction-backend-1.0.0.jar \
 | `GET /api/metrics` | The full `metrics.json`: models, baselines, thresholds, importances, `cvLog`, `verifiedRowsUsed` |
 | `GET /api/features` | The 41 features as `{key, label, min, max, default, type, screening, required}` for the frontend form (`default` = training mean; `screening` = used by the screening model; `required` = one of the 11 required fields) |
 | `GET /api/models/{name}/importance` | Top feature importances for Random Forest, Gradient Boosting and the screening model (`{model, importance: [{feature, importance}]}`); 404 for Bagging/AdaBoost/voting/baselines, which have no impurity importance |
-| `POST /api/predict` | Prediction from the deployed model. Body: flat JSON with the 41 keys, or `{"features": {...}}`. Query `?mode=full` (default) or `?mode=screening`. **11 non-invasive fields are required** (age, bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise) — missing any returns 400 listing them. Other missing features default to training means, and the response reports `imputedCount` / `imputedOf` (how many of the 41 fields were imputed). Returns `{"prediction": 0\|1, "label", "probability", "confidence", "model", "modelAccuracy", "mode", "threshold", "imputedCount", "imputedOf"}`. Non-numeric values return 400 with a clear message, never 500. Empty `{}` returns 400 (it must not return a confident prediction). |
-| `GET /api/predictions?limit=20` | Prediction history, latest first (limit 1–100, default 20). 503 when the database is unavailable. |
-| `GET /api/predictions/{id}` | One history record. 404 for an unknown id, 503 without a database. |
-| `PATCH /api/predictions/{id}/outcome` | Set the doctor-verified outcome: body `{"verifiedOutcome": 0\|1}`. 400 for any other value, 404 for an unknown id, 503 without a database. |
-| `POST /api/retrain` | Retrains all models on `../data/pcos_dataset.csv` plus verified history rows and reloads them. Takes ~12 minutes; returns the new metrics. Requires the `X-Admin-Key` header (401 without/wrong key). |
+| `POST /api/predict` | Prediction from the deployed model. Body: flat JSON with the 41 keys, or `{"features": {...}}`. Query `?mode=full` (default) or `?mode=screening`. **11 non-invasive fields are required** (age, bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise) — missing any returns 400 listing them. Other missing features default to training means, and the response reports `imputedCount` / `imputedFields` (how many of the 41 fields were imputed, and which). Returns `{"prediction": 0\|1, "label", "probability", "confidence", "model", "modelAccuracy", "modelAccuracyCiLow", "modelAccuracyCiHigh", "modelAccuracyNote", "mode", "threshold", "imputedCount", "imputedOf", "imputedFields", "warning?"}`. `confidence` is the probability of the **predicted** class — for a screening prediction below 0.5 it is the (low) PCOS probability itself, not `max(p, 1-p)`. `modelAccuracy` is the model's test accuracy on the 108-row held-out set (with its 95% CI and a note saying so) — it describes the model, not this one prediction. When 21+ fields were imputed the response also carries a `warning` that the result rests mostly on training averages. Non-numeric values return 400 with a clear message, never 500. Empty `{}` returns 400 (it must not return a confident prediction). |
+| `GET /api/predictions?limit=20` | Prediction history, latest first (limit 1–100, default 20). Requires the `X-Admin-Key` header (401 without/wrong key; 503 if `ADMIN_KEY` is unset). 503 when the database is unavailable. |
+| `GET /api/predictions/{id}` | One history record. Requires the `X-Admin-Key` header (same 401/503 rules). 404 for an unknown id, 503 without a database. |
+| `PATCH /api/predictions/{id}/outcome` | Set the doctor-verified outcome: body `{"verifiedOutcome": 0\|1}`. Requires the `X-Admin-Key` header (same 401/503 rules). Re-PATCHing overwrites the previous value (latest value wins; `verifiedAt` updated). 400 for any other value, 404 for an unknown id, 503 without a database. |
+| `POST /api/retrain` | Starts a retrain in the background (all models, on `../data/pcos_dataset.csv` plus verified history rows) and returns **202 Accepted** immediately with `{jobId, status: "RUNNING", statusUrl}`. Requires the `X-Admin-Key` header (401 without/wrong key; 503 if `ADMIN_KEY` is unset). A second retrain while one runs returns **409**. Takes ~2.5–12 minutes; poll the status endpoints below. |
+| `GET /api/retrain/status` | The latest retrain job: `{jobId, status: "RUNNING"\|"DONE"\|"FAILED", startedAt, finishedAt, message, bestModel, bestModelTestAccuracy, verifiedRowsUsed, generatedAt}`. Requires the `X-Admin-Key` header (401/503 rules as above). |
+| `GET /api/retrain/{jobId}` | One retrain job by id (only the latest job is retained). Requires the `X-Admin-Key` header. 404 for an unknown id. |
 
 ### Tests
 
-`mvn test` runs 33 tests, 0 failures:
+`mvn test` runs 52 tests, 0 failures (2 aborted = live-MySQL tests skipped
+when MySQL is unreachable from Java — see "Notes for this development VM
+only"):
 
 | Test class | Tests | What it covers |
 |---|---|---|
-| `PcodControllerTest` | 17 | MockMvc: health, models (6 entries), metrics, features, importance endpoints, predict (samples, modes, 400s), history 503 without DB |
+| `PcodControllerTest` | 21 | MockMvc: health, models (6 entries), metrics, features, importance endpoints, predict (samples, modes, 400s, imputed-fields + warning, accuracy note + CI), history 503 without DB, predictions/PATCH auth (401 without/wrong key) |
 | `PreprocessingTest` | 5 | Mean imputation, standardisation, 99th-percentile clipping, constant-feature handling |
-| `PredictorTest` | 4 | Real `ModelStore`: full + screening predictions on samples 1/2, screening ignores lab/ultrasound features, thresholds valid |
-| `PredictionRecordRepositoryTest` | 3 | JPA layer on H2 (**test scope only** — runtime DB stays MySQL): save/find, latest-first ordering, verified-only query |
-| `RetrainSecurityTest` | 2 | `POST /api/retrain` without key → 401, wrong key → 401 (admin key `test-admin-key`) |
+| `PredictorTest` | 8 | Real `ModelStore`: full + screening predictions on samples 1/2, screening ignores lab/ultrasound features, thresholds valid, screening confidence = P(predicted class) incl. the p≈0.26 bug case, reload keeps predictions consistent, concurrent predict during reload never sees a mixed state |
+| `PredictionRecordRepositoryTest` | 4 | JPA layer on H2 (**test scope only** — runtime DB stays MySQL): save/find, latest-first ordering, verified-only query, `imputedFieldsJson` round-trip |
+| `RetrainSecurityTest` | 4 | `POST /api/retrain` without key → 401, wrong key → 401; with key → 202 with job id + status URL; status endpoint reports a failed job (bad dataset path) and 404s for unknown ids, all behind the admin key |
+| `AdminKeyFailClosedTest` | 4 | With no admin key configured: retrain, predictions, PATCH outcome and retrain status all → 503 (fail-closed), even with a key supplied |
+| `TrainingServiceTest` | 4 | Quoted-field CSV parsing (`splitCsvLine`, `loadCsv` — quoted commas, `""` escapes, malformed-cell counter reset per load), per-fold feature rankings (permutation + signal feature first in every fold), `cvAccuracyTopK` uses only the top-k features |
 | `PredictionHistoryTest` | 2 | **Live MySQL**: POST a prediction → history lists it → get by id → PATCH verified outcome → 404s. Skipped (not failed) when MySQL is unreachable |
 
 The live MySQL test is designed to skip cleanly: its context loads without
@@ -439,13 +492,13 @@ curl http://localhost:8080/api/models/bagging/importance
 # Sample 2 (true label 1), full mode:
 curl -X POST http://localhost:8080/api/predict -H "Content-Type: application/json" -d \
 '{"age":33,"weightKg":68.8,"heightCm":165.0,"bmi":25.27089073,"bloodGroup":11,"pulseRate":72,"rr":18,"hb":11.8,"cycle":2,"cycleLength":5,"marriageYears":10.0,"pregnant":1,"abortions":0,"betaHcg1":494.08,"betaHcg2":494.08,"fsh":5.54,"lh":0.88,"fshLh":6.295454545,"hip":40,"waist":36,"waistHipRatio":0.9,"tsh":2.54,"amh":6.63,"prl":10.52,"vitD3":49.7,"prg":0.36,"rbs":84.0,"weightGain":0,"hairGrowth":0,"skinDarkening":0,"hairLoss":1,"pimples":1,"fastFood":1.0,"regularExercise":0,"bpSystolic":120,"bpDiastolic":80,"follicleL":13,"follicleR":15,"avgFollicleSizeL":18.0,"avgFollicleSizeR":20.0,"endometrium":10.0}'
-# {"prediction":1,"label":"PCOS Detected","probability":0.8566,"confidence":0.8566,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"mode":"full","threshold":0.5,"imputedCount":0,"imputedOf":41}
+# {"prediction":1,"label":"PCOS Detected","probability":0.8566,"confidence":0.8566,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.5,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
 
 # Sample 1 (true label 0), full mode:
-# {"prediction":0,"label":"No PCOS Detected","probability":0.099,"confidence":0.901,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"mode":"full","threshold":0.5,"imputedCount":0,"imputedOf":41}
+# {"prediction":0,"label":"No PCOS Detected","probability":0.099,"confidence":0.901,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.5,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
 
 # Sample 3 (true label 1), full mode:
-# {"prediction":1,"label":"PCOS Detected","probability":0.8314,"confidence":0.8314,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"mode":"full","threshold":0.5,"imputedCount":0,"imputedOf":41}
+# {"prediction":1,"label":"PCOS Detected","probability":0.8314,"confidence":0.8314,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.5,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
 
 # Sample 2 in screening mode — the screening model MISSES this patient
 # (probability 0.1214 < threshold 0.25): its non-invasive profile is mild
@@ -454,14 +507,21 @@ curl -X POST http://localhost:8080/api/predict -H "Content-Type: application/jso
 # is the expected behaviour difference between the modes, and why the
 # screening model's measured recall is 82.86%, not 100%:
 curl -X POST "http://localhost:8080/api/predict?mode=screening" -H "Content-Type: application/json" -d '<sample 2>'
-# {"prediction":0,"label":"No PCOS Detected","probability":0.1214,"confidence":0.8786,"model":"Gradient Boosting (Screening)","modelAccuracy":0.8241,"mode":"screening","threshold":0.25,"imputedCount":0,"imputedOf":41}
+# {"prediction":0,"label":"No PCOS Detected","probability":0.1214,"confidence":0.8786,"model":"Gradient Boosting (Screening)","modelAccuracy":0.8241,"modelAccuracyCiLow":0.75,"modelAccuracyCiHigh":0.8889,"modelAccuracyNote":"Test accuracy of Gradient Boosting (Screening) on the 108-row held-out test set (95% CI 75.0%–88.9%); it describes the model, not this individual prediction.","mode":"screening","threshold":0.25,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
 # Sample 1 screening: {"prediction":0,...,"probability":0.0764,...}
 # Sample 3 screening: {"prediction":1,...,"probability":0.8513,...}
+
+# Confidence is the probability of the PREDICTED class, even below 0.5:
+# dataset row 9 (true label 0) in screening mode predicts PCOS with
+# probability 0.2577 — above the 0.25 threshold, below 0.5 — and the
+# response reports confidence 0.2577 (the PCOS side), not 0.7423. An
+# earlier version reported max(p, 1-p) = 0.7423 here, which was the
+# No-PCOS side's probability. Verified live against the running jar.
 
 # Only the 11 required fields (30 of 41 imputed):
 curl -X POST http://localhost:8080/api/predict -H "Content-Type: application/json" -d \
 '{"age":33,"bmi":25.0,"cycle":2,"cycleLength":5,"weightGain":0,"hairGrowth":0,"skinDarkening":0,"hairLoss":1,"pimples":1,"fastFood":1,"regularExercise":0}'
-# {"prediction":0,"label":"No PCOS Detected","probability":0.2358,"confidence":0.7642,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"mode":"full","threshold":0.5,"imputedCount":30,"imputedOf":41}
+# {"prediction":0,"label":"No PCOS Detected","probability":0.2358,"confidence":0.7642,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.5,"imputedCount":30,"imputedOf":41,"imputedFields":["weightKg","heightCm","bloodGroup","pulseRate","rr","hb","marriageYears","pregnant","abortions","betaHcg1","betaHcg2","fsh","lh","fshLh","hip","waist","waistHipRatio","tsh","amh","prl","vitD3","prg","rbs","bpSystolic","bpDiastolic","follicleL","follicleR","avgFollicleSizeL","avgFollicleSizeR","endometrium"],"warning":"More than half of the 41 input fields were missing and were filled with training averages — this result rests mostly on average values, not on the patient's own data. Treat it with extra caution; it is not a diagnosis."}
 
 # Error cases (all HTTP 400, never 500):
 curl -X POST http://localhost:8080/api/predict -H "Content-Type: application/json" -d '{}'
@@ -475,6 +535,8 @@ curl -X POST http://localhost:8080/api/predict -H "Content-Type: application/jso
 
 # History without a database (prediction-only run):
 curl http://localhost:8080/api/predictions
+# {"error":"Missing or invalid X-Admin-Key header. This endpoint requires the admin key (ADMIN_KEY)."}  (401 — the admin key is checked before the database)
+curl http://localhost:8080/api/predictions -H "X-Admin-Key: test-admin-key"
 # {"error":"Prediction history database is not available — check that MySQL is running and the datasource is configured (see README)."}  (503)
 
 # Retrain auth (ADMIN_KEY=test-admin-key in this run):
@@ -482,10 +544,22 @@ curl -X POST http://localhost:8080/api/retrain
 # {"error":"Missing or invalid X-Admin-Key header. POST /api/retrain requires the admin key (ADMIN_KEY)."}  (401)
 curl -X POST http://localhost:8080/api/retrain -H "X-Admin-Key: wrong-key"
 # (same 401)
-# A full live retrain was NOT run against the running jar in this session
-# (it re-runs the ~12-minute pipeline). The trainer itself was run
-# (final run, 2026-11-25) and reproduces the run-6 ensemble metrics
-# exactly; the endpoint's auth behaviour above was verified live.
+# With the right key the endpoint answers 202 immediately and trains in
+# the background (verified live in this session):
+curl -X POST http://localhost:8080/api/retrain -H "X-Admin-Key: test-admin-key"
+# {"jobId":"a5070e68-af4c-4aa1-ad55-f8b8bfae077b","status":"RUNNING","message":"Retraining started in the background — poll GET /api/retrain/status for the result.","statusUrl":"/api/retrain/status"}  (202)
+curl -X POST http://localhost:8080/api/retrain -H "X-Admin-Key: test-admin-key"
+# {"error":"A retrain is already running (job a5070e68-...). Wait for it to finish — poll GET /api/retrain/status — before starting another."}  (409)
+curl http://localhost:8080/api/retrain/status -H "X-Admin-Key: test-admin-key"
+# {"jobId":"a5070e68-...","status":"RUNNING","startedAt":"2026-11-25T19:31:15.47...","finishedAt":null,"message":"Retraining started in the background — poll GET /api/retrain/status for the result.","bestModel":null,"bestModelTestAccuracy":null,"verifiedRowsUsed":null,"generatedAt":null}  (200)
+# (The background job above ran to completion in this session: DONE,
+# best model Soft Voting Ensemble, test accuracy 0.8889, verified rows
+# used 0, generatedAt 2026-11-25T19:34:51 — the retrained metrics are
+# identical to the frozen run-8 metrics, and the app reloaded the new
+# models from PCOD_RESOURCES_DIR (/tmp/smoke-retrain in this run) and
+# kept serving predictions (sample 2 still predicts 1 at p=0.8566) with
+# no restart. The frozen run-8 artefacts in src/main/resources were
+# untouched throughout.)
 
 # Swagger:
 curl http://localhost:8080/v3/api-docs        # 200
@@ -513,30 +587,43 @@ user's laptop, or Docker Compose below).
 
 - `mysql`: `mysql:8.0`, database `pcod_db`, data in the `mysql-data`
   volume, healthcheck `mysqladmin ping`. Root password from
-  `MYSQL_ROOT_PASSWORD` (required — set it in a `.env` file or the shell;
-  there is no default password).
+  `MYSQL_ROOT_PASSWORD` — **required** (`${MYSQL_ROOT_PASSWORD:?set
+  MYSQL_ROOT_PASSWORD in .env}`); there is no default password. MySQL's
+  port **3306 is not published to the host** — the backend reaches MySQL
+  over the Compose network; host access needs
+  `docker exec -it pcod-mysql mysql -uroot -p`.
 - `backend`: builds `./backend` (multi-stage Maven build; the trained
   models are baked into the jar), port 8080, `MYSQL_URL` pointing at host
-  `mysql`, `ADMIN_KEY` from the environment, `./data` mounted read-only
-  at `/app/data` for `POST /api/retrain`.
-- `frontend`: builds `./frontend`, port 5173, `VITE_BACKEND_URL`
-  set to `http://backend:8080` so the Vite `/api` proxy reaches the backend
-  service inside the Compose network. Locally (outside Docker) the proxy
-  still defaults to `http://localhost:8080` — `frontend/vite.config.js`
-  reads `VITE_BACKEND_URL` with that default, so local dev is unchanged.
+  `mysql`, `ADMIN_KEY` from the environment (**required** —
+  `${ADMIN_KEY:?set ADMIN_KEY in .env}`; the stack refuses to start
+  without it, and the app itself fails closed without it), `./data`
+  mounted read-only at `/app/data` for `POST /api/retrain`, and the named
+  volume `pcod-resources` mounted at `/app/resources` (`PCOD_RESOURCES_DIR`)
+  so retrained artefacts survive container recreation.
+- `frontend`: multi-stage build (Node builds the Vite bundle, then
+  **nginx:alpine serves `dist/`** on port 5173 and proxies `/api/` to
+  `http://backend:8080` inside the Compose network — not the Vite dev or
+  preview server). Locally (outside Docker) the Vite proxy still defaults
+  to `http://localhost:8080` — `frontend/vite.config.js` reads
+  `VITE_BACKEND_URL` with that default, so local dev is unchanged.
 
 Set `MYSQL_ROOT_PASSWORD` and `ADMIN_KEY` in a `.env` file next to
-`docker-compose.yml` (or in the shell) before starting. Stop with
-`docker compose down` (add `-v` to delete the MySQL data volume). Then
+`docker-compose.yml` (or in the shell) before starting — both are required
+and the stack will not start without them. Stop with
+`docker compose down` (add `-v` to delete the MySQL data volume; the
+`pcod-resources` volume is kept unless removed explicitly, so retrained
+models survive a `down`). Then
 open `http://localhost:5173`; Swagger UI is at
 `http://localhost:8080/swagger-ui.html`.
 
-**Not live-tested in this VM:** Docker is not installed here, so the
-Compose stack could not be started. The YAML was validated
+**Not live-tested in this VM:** Docker is installed here (29.1.3,
+Compose 2.40.3) but no container can start (mount-namespace creation is
+blocked), so the Compose stack could not be started and the frontend image
+could not be built here. The YAML was validated
 (`python3 -c yaml.safe_load`, services mysql/backend/frontend parse
 correctly) and both Dockerfiles were written from the project's actual
-build steps (Maven package for the backend, `npm ci && npm run build &&
-npm run preview` for the frontend), but the one-command start must be
+build steps (Maven package for the backend, `npm ci && npm run build`
+then nginx for the frontend), but the one-command start must be
 verified on a machine with Docker before it is relied on.
 
 ## Project layout
@@ -573,12 +660,14 @@ pcod-working-project/
       models/*.ser                       The five trained models (generated)
       models/MODEL_CARD.md               Model card (generated from metrics.json)
     src/test/java/com/pcod/
-      PcodControllerTest.java            17 MockMvc tests
+      PcodControllerTest.java            21 MockMvc tests
       PreprocessingTest.java             5 unit tests
-      PredictorTest.java                 4 tests on the real ModelStore
-      PredictionRecordRepositoryTest.java  3 JPA tests on H2 (test scope only)
+      PredictorTest.java                 8 tests on the real ModelStore
+      PredictionRecordRepositoryTest.java  4 JPA tests on H2 (test scope only)
       PredictionHistoryTest.java         2 live-MySQL tests (skip when MySQL unreachable)
-      RetrainSecurityTest.java           2 tests (401 without/wrong key)
+      RetrainSecurityTest.java           4 tests (401 without/wrong key; 202 + status)
+      AdminKeyFailClosedTest.java        4 tests (503 fail-closed, no key configured)
+      TrainingServiceTest.java           4 tests (CSV parsing, per-fold ranking)
     src/test/resources/application.properties   JPA excluded (unit tests need no DB)
   frontend/
     Dockerfile                           node:20 build + vite preview on 5173
@@ -625,6 +714,23 @@ only and its soft-predict throws; see Method for how that is handled.
 - The honest accuracy ceiling on 541 patients is high-80s to low-90s; the
   single largest improvement would come from more verified labelled patient
   data, which no public source currently provides (see Dataset).
+- **No refit on all 541 rows — by design.** The shipped models were
+  trained on the 433-row train split only, so the reported test metrics
+  (88.89% for the deployed ensemble, 95% CI 82.4–94.4%) describe the exact
+  artefact being served. Refitting on all 541 rows after evaluation would
+  use ~25% more data and probably help slightly, but then the test metrics
+  would no longer describe the shipped model — there would be no honest
+  held-out number left for it. A refit is a deliberate future decision,
+  not a silent step.
+- **Follicle counts are near-diagnostic.** Antral follicle counts differ
+  sharply between the classes (follicleL mean 9.79 with PCOS vs 4.35
+  without; follicleR 10.76 vs 4.64) — they are Rotterdam-adjacent
+  morphology features (ovarian morphology is one of the Rotterdam
+  criteria), so a model that sees them is partly re-deriving the
+  diagnosis. That is why the 23-feature screening model exists: it uses
+  no follicle counts, no AMH and no other labs, and still reaches 82.41%
+  test accuracy with 82.86% recall — the honest answer to "does this work
+  before any lab or ultrasound?".
 - Recall is the weaker side for every model (deployed ensemble 74.29% on
   the test set; screening 82.86% at its tuned threshold). The deployed
   model must not be used to rule PCOS out.

@@ -40,7 +40,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         // Re-enable the JPA auto-configuration excluded by the test profile.
         "spring.autoconfigure.exclude=",
-        "spring.datasource.url=${MYSQL_URL:jdbc:mysql://localhost:3306/pcod_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC}",
+        // History endpoints require the admin key (fail-closed when unset).
+        "pcod.admin.key=test-admin-key",        "spring.datasource.url=${MYSQL_URL:jdbc:mysql://localhost:3306/pcod_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC}",
         "spring.datasource.username=${MYSQL_USERNAME:root}",
         "spring.datasource.password=${MYSQL_PASSWORD:}",
         // The context must load even when MySQL is DOWN, so that the
@@ -139,7 +140,8 @@ class PredictionHistoryTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.prediction").value(1));
 
-        MvcResult list = mockMvc.perform(get("/api/predictions").param("limit", "5"))
+        MvcResult list = mockMvc.perform(get("/api/predictions").param("limit", "5")
+                        .header("X-Admin-Key", "test-admin-key"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].prediction").value(1))
@@ -152,13 +154,15 @@ class PredictionHistoryTest {
         String body = list.getResponse().getContentAsString();
         long id = Long.parseLong(body.replaceAll(".*\"id\"\\s*:\\s*(\\d+).*", "$1"));
 
-        mockMvc.perform(get("/api/predictions/" + id))
+        mockMvc.perform(get("/api/predictions/" + id).header("X-Admin-Key", "test-admin-key"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value((int) id))
                 .andExpect(jsonPath("$.prediction").value(1))
-                .andExpect(jsonPath("$.features.age").value(33));
+                .andExpect(jsonPath("$.features.age").value(33))
+                .andExpect(jsonPath("$.imputedFields").isArray())
+                .andExpect(jsonPath("$.imputedFields").isEmpty());
 
-        mockMvc.perform(get("/api/predictions/999999999"))
+        mockMvc.perform(get("/api/predictions/999999999").header("X-Admin-Key", "test-admin-key"))
                 .andExpect(status().isNotFound());
     }
 
@@ -170,31 +174,32 @@ class PredictionHistoryTest {
                         .content(SAMPLE2))
                 .andExpect(status().isOk());
 
-        MvcResult list = mockMvc.perform(get("/api/predictions").param("limit", "1"))
+        MvcResult list = mockMvc.perform(get("/api/predictions").param("limit", "1")
+                        .header("X-Admin-Key", "test-admin-key"))
                 .andExpect(status().isOk())
                 .andReturn();
         String body = list.getResponse().getContentAsString();
         long id = Long.parseLong(body.replaceAll(".*\"id\"\\s*:\\s*(\\d+).*", "$1"));
 
         // Invalid value -> 400.
-        mockMvc.perform(patch("/api/predictions/" + id)
+        mockMvc.perform(patch("/api/predictions/" + id).header("X-Admin-Key", "test-admin-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"verifiedOutcome\": 2}"))
                 .andExpect(status().isBadRequest());
 
         // Valid value -> 200, stored on the record.
-        mockMvc.perform(patch("/api/predictions/" + id)
+        mockMvc.perform(patch("/api/predictions/" + id).header("X-Admin-Key", "test-admin-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"verifiedOutcome\": 1}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.verifiedOutcome").value(1))
                 .andExpect(jsonPath("$.verifiedAt").isString());
 
-        mockMvc.perform(get("/api/predictions/" + id))
+        mockMvc.perform(get("/api/predictions/" + id).header("X-Admin-Key", "test-admin-key"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.verifiedOutcome").value(1));
 
-        mockMvc.perform(patch("/api/predictions/999999999")
+        mockMvc.perform(patch("/api/predictions/999999999").header("X-Admin-Key", "test-admin-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"verifiedOutcome\": 1}"))
                 .andExpect(status().isNotFound());

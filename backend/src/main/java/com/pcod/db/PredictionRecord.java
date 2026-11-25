@@ -16,10 +16,16 @@ import java.time.LocalDateTime;
  * The 41 input features are stored as a single JSON object in
  * {@code featuresJson} (values actually used for the prediction — any
  * feature missing from the request is stored as its training mean, the
- * same value the model saw). {@code prediction}, {@code label},
+ * same value the model saw). {@code imputedFieldsJson} records WHICH
+ * features were mean-filled (a JSON array of feature keys, "[]" when
+ * none were) — retraining must be able to tell real measurements apart
+ * from filled-in means, and rows with any imputed field are excluded
+ * from retraining data. {@code prediction}, {@code label},
  * {@code probability}, {@code confidence} and {@code model} are the values
  * returned by {@code POST /api/predict}; {@code createdAt} is set when the
- * record is first saved.
+ * record is first saved. Rows written before imputed-field tracking
+ * existed have {@code imputedFieldsJson == null} and are treated as
+ * unverifiable (excluded from retraining).
  */
 @Entity
 @Table(name = "prediction_records")
@@ -32,6 +38,15 @@ public class PredictionRecord {
     /** The 41 input features as a JSON object (clean snake_case keys). */
     @Column(name = "features_json", columnDefinition = "TEXT", nullable = false)
     private String featuresJson;
+
+    /**
+     * Feature keys that were mean-imputed for this prediction, as a JSON
+     * array (e.g. ["amh","tsh"] or "[]"). Null for rows stored before
+     * imputed-field tracking existed. Retraining excludes any verified row
+     * with a non-empty list (and any row with a null list).
+     */
+    @Column(name = "imputed_fields_json", columnDefinition = "TEXT")
+    private String imputedFieldsJson;
 
     /** 0 = no PCOS detected, 1 = PCOS detected. */
     @Column(nullable = false)
@@ -93,6 +108,14 @@ public class PredictionRecord {
 
     public String getFeaturesJson() {
         return featuresJson;
+    }
+
+    public String getImputedFieldsJson() {
+        return imputedFieldsJson;
+    }
+
+    public void setImputedFieldsJson(String imputedFieldsJson) {
+        this.imputedFieldsJson = imputedFieldsJson;
     }
 
     public int getPrediction() {

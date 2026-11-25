@@ -6,7 +6,7 @@
 | Training date | 2026-11-25T16:02:20.941408003 |
 | Dataset | Kaggle, Prasoon Kottarathil, "Polycystic Ovary Syndrome (PCOS)" — 541 patients from 10 hospitals in Kerala, 45 columns. 41 input features after dropping identifiers and the junk column. Target `PCOS (Y/N)`: 0 = 364 (67.3%), 1 = 177 (32.7%). |
 | Split | Stratified 80/20 train/test, seed 42. Train 433 rows, test 108 rows. Test split evaluated exactly once, after all tuning. |
-| Tuning | 5-fold stratified cross-validation on the train split only (seed 42): hyperparameter grids, feature subsets from train-only Random Forest importance, clipping on/off, minority oversampling on/off. Preprocessing re-fitted inside every fold. |
+| Tuning | 5-fold stratified cross-validation on the train split only (seed 42): hyperparameter grids, feature subsets from Random Forest importance rankings re-computed inside each CV fold (ranked on that fold's training part only), clipping on/off, minority oversampling on/off. Preprocessing re-fitted inside every fold. |
 | Deployed model | Soft Voting Ensemble — chosen by best train CV, not by test accuracy. |
 | Verified history rows used | 0 (only doctor-verified outcomes are ever used for training) |
 | Library / stack | Java 17, Spring Boot 3.2.5, Smile 3.1.1 (Java ML, no Python) |
@@ -46,6 +46,46 @@ only — age, body measurements, cycle pattern, symptoms and lifestyle. No
 hormone/blood labs and no ultrasound measures. It is the model behind
 `POST /api/predict?mode=screening`, for early detection before a doctor visit.
 
+**Follicle counts are near-diagnostic.** Antral follicle counts differ
+sharply between the classes (follicleL mean 9.79 with PCOS vs 4.35 without;
+follicleR 10.76 vs 4.64) — they are Rotterdam-adjacent morphology features
+(ovarian morphology is one of the Rotterdam criteria), so a model that sees
+them is partly re-deriving the diagnosis. The screening model exists
+precisely to answer that: with no follicle counts, no AMH and no other
+labs, it still reaches 82.41% test accuracy with 82.86% recall.
+
+## Serving & retraining
+
+- **Confidence is the probability of the predicted class.** The deployed
+  ensemble uses threshold 0.50, the screening model 0.25 — so a screening
+  prediction can be PCOS with a probability below 0.5 (e.g. 0.2577), and
+  the response reports that same 0.2577 as its confidence, not
+  `max(p, 1-p)`.
+- **`modelAccuracy` in the predict response is the model's test accuracy**
+  on the 108-row held-out set (with its 95% CI and a note saying so) — it
+  describes the model, not the individual prediction. When 21 or more of
+  the 41 fields were mean-imputed, the response also carries a `warning`
+  that the result rests mostly on training averages.
+- **Retraining is asynchronous and admin-only.** `POST /api/retrain`
+  returns 202 with a job id; `GET /api/retrain/status` (or
+  `/api/retrain/{jobId}`) reports RUNNING / DONE / FAILED. A second
+  retrain while one runs is rejected with 409. Retrained artefacts are
+  written to the external resources directory and loaded from it first at
+  startup (Docker: the `pcod-resources` volume), so a restart serves the
+  new models; if that directory is empty or corrupt, the app falls back
+  to the models baked into the jar.
+- **Admin key is fail-closed.** `GET /api/predictions`,
+  `GET /api/predictions/{id}`, `PATCH /api/predictions/{id}/outcome` and
+  all retrain endpoints require `X-Admin-Key`; without the header or with
+  the wrong key they return 401, and if `ADMIN_KEY` is unset they return
+  503 (disabled) instead of running unprotected.
+- **Only verified, complete rows retrain.** Retraining uses only
+  doctor-verified outcomes, and a verified row is used only if none of its
+  stored fields were mean-imputed at prediction time (tracked per record
+  as `imputedFields`); rows with any imputed field — or written before
+  that field was tracked — are excluded, so the model never learns from
+  training averages presented as real values.
+
 ## Baselines (same split, same train-only CV protocol)
 
 | Model | Accuracy | Precision | Recall | F1 | ROC-AUC | PR-AUC | Brier | Train CV | TP/FP/FN/TN | 95% CI (accuracy) |
@@ -83,6 +123,11 @@ full model uses all 41 features including labs and ultrasound.
 - Small data: 541 patients, 108 in the test set. Accuracy carries roughly
   ±3 percentage points of sampling variation; small differences between
   models are not significant.
+- **No refit on all 541 rows — by design.** The shipped models were
+  trained on the 433-row train split only, so the reported test metrics
+  describe the exact artefact being served. Refitting on all 541 rows
+  after evaluation would use ~25% more data but then the test metrics
+  would no longer describe the shipped model.
 - Single-centre region (Kerala hospitals) and a single dataset — no external
   validation cohort yet. Performance on other populations is unknown.
 - Recall is the weaker side: the deployed model misses some true cases
@@ -91,7 +136,10 @@ full model uses all 41 features including labs and ultrasound.
   risk scores, not clinical probabilities.
 - Missing values are filled with training means; a prediction based mostly
   on imputed values is less trustworthy — the API reports `imputedCount`
-  (how many of the 41 fields were imputed) and requires 11 key fields.
+  and `imputedFields` (how many of the 41 fields were imputed, and which)
+  and requires 11 key fields, and adds a `warning` when 21 or more fields
+  were imputed. Verified rows with any imputed field are excluded from
+  retraining.
 - Only doctor-verified outcomes (PATCH /api/predictions/&#123;id&#125;/outcome)
   are ever used for retraining. Unverified model predictions are never
   trained on.

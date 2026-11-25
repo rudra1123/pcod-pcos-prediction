@@ -9,6 +9,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -17,10 +18,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Smoke tests for the API. Requires the trainer to have run first so that
  * src/main/resources contains metrics.json / preprocessing.json / models/*.ser
  * (the trainer runs before `mvn package` in the README workflow).
+ * Runs with pcod.admin.key=test-admin-key so the admin-protected history
+ * endpoints can be exercised (see the 401/503 tests below).
  */
-@SpringBootTest
+@SpringBootTest(properties = "pcod.admin.key=test-admin-key")
 @AutoConfigureMockMvc
 class PcodControllerTest {
+
+    private static final String ADMIN_KEY = "test-admin-key";
 
     @Autowired
     private MockMvc mockMvc;
@@ -117,9 +122,31 @@ class PcodControllerTest {
                 .andExpect(jsonPath("$.probability").isNumber())
                 .andExpect(jsonPath("$.model").isString())
                 .andExpect(jsonPath("$.modelAccuracy").isNumber())
+                .andExpect(jsonPath("$.modelAccuracyNote").isString())
+                .andExpect(jsonPath("$.modelAccuracyCiLow").isNumber())
+                .andExpect(jsonPath("$.modelAccuracyCiHigh").isNumber())
                 .andExpect(jsonPath("$.mode").value("full"))
                 .andExpect(jsonPath("$.threshold").isNumber())
-                .andExpect(jsonPath("$.imputedCount").value(0));
+                .andExpect(jsonPath("$.imputedCount").value(0))
+                .andExpect(jsonPath("$.imputedFields").isArray())
+                .andExpect(jsonPath("$.imputedFields").isEmpty());
+    }
+
+    @Test
+    void predictReportsImputedFieldsAndWarningWhenMostlyImputed() throws Exception {
+        // All 11 required fields present; the other 30 are imputed (>= 21).
+        mockMvc.perform(post("/api/predict")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"features\": {\"age\": 28, \"bmi\": 19.3, \"cycle\": 2, "
+                                + "\"cycleLength\": 5, \"weightGain\": 0, \"hairGrowth\": 0, "
+                                + "\"skinDarkening\": 0, \"hairLoss\": 0, \"pimples\": 0, "
+                                + "\"fastFood\": 1, \"regularExercise\": 0}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.imputedCount").value(30))
+                .andExpect(jsonPath("$.imputedFields").isArray())
+                .andExpect(jsonPath("$.imputedFields.length()").value(30))
+                .andExpect(jsonPath("$.imputedFields[0]").value("weightKg"))
+                .andExpect(jsonPath("$.warning").isString());
     }
 
     @Test
@@ -198,11 +225,44 @@ class PcodControllerTest {
     void predictionsWithoutDatabaseIs503() throws Exception {
         // Test profile excludes the JPA auto-configuration, so no database
         // is configured: history is unavailable, but the API must say so
-        // with a 503 instead of failing.
-        mockMvc.perform(get("/api/predictions"))
+        // with a 503 instead of failing. (The admin key is supplied, so
+        // this exercises the database path, not the auth gate.)
+        mockMvc.perform(get("/api/predictions").header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.error").isString());
+        mockMvc.perform(get("/api/predictions/1").header("X-Admin-Key", ADMIN_KEY))
+                .andExpect(status().isServiceUnavailable());
+    }
+
+    @Test
+    void predictionsWithoutAdminKeyIs401() throws Exception {
+        mockMvc.perform(get("/api/predictions"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").isString());
         mockMvc.perform(get("/api/predictions/1"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(patch("/api/predictions/1/outcome")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verifiedOutcome\": 1}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void predictionsWithWrongAdminKeyIs401() throws Exception {
+        mockMvc.perform(get("/api/predictions").header("X-Admin-Key", "wrong-key"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(patch("/api/predictions/1/outcome").header("X-Admin-Key", "wrong-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verifiedOutcome\": 1}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void patchOutcomeWithoutDatabaseIs503() throws Exception {
+        // Auth passes (correct key) but there is no database: 503, not 500.
+        mockMvc.perform(patch("/api/predictions/1/outcome").header("X-Admin-Key", ADMIN_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verifiedOutcome\": 1}"))
                 .andExpect(status().isServiceUnavailable());
     }
 }

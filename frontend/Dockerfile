@@ -1,13 +1,18 @@
-# Frontend image: installs dependencies, builds the Vite production bundle,
-# and serves it with `vite preview` on port 5173. /api is proxied to the
-# backend — the proxy target comes from VITE_BACKEND_URL (set to
-# http://backend:8080 by docker-compose.yml; defaults to
-# http://localhost:8080 when running Vite locally).
-FROM node:20-alpine
+# Frontend image: multi-stage build. Stage 1 installs dependencies and
+# builds the Vite production bundle; stage 2 serves the static files with
+# nginx (a real production server, not the Vite dev/preview server) and
+# proxies /api to the backend service inside the Compose network
+# (see nginx.conf). The frontend calls the backend with relative /api
+# URLs, so no build-time API URL is needed.
+FROM node:20-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
+
+FROM nginx:alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 5173
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "5173"]
+CMD ["nginx", "-g", "daemon off;"]

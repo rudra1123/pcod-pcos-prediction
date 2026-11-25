@@ -124,6 +124,7 @@ button:disabled { opacity: 0.6; cursor: wait; }
   font-weight: 600;
 }
 .result-note { margin: 8px 0; }
+.result-accuracy-note { margin: 4px 0; font-size: 0.9rem; }
 .result-date { margin: 6px 0; }
 .result-disclaimer { margin: 12px 0 0; }
 .download-btn { margin-top: 12px; }
@@ -225,6 +226,29 @@ button:disabled { opacity: 0.6; cursor: wait; }
 }
 .models-table th { background: #eef2f5; }
 .best-row { background: #fff8d6; font-weight: 700; }
+
+/* Prediction mode toggle (full / screening) */
+.mode-toggle { margin: 16px 0 8px; text-align: left; }
+.mode-toggle-label { font-weight: 700; margin-right: 12px; }
+.mode-toggle label { margin-right: 18px; white-space: nowrap; }
+.mode-toggle-note { margin: 8px 0 0; font-size: 0.9rem; }
+
+/* Prediction history (admin only) */
+.admin-key-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+.admin-key-row input[type="password"] {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid #b9c4ce;
+  border-radius: 8px;
+}
+.history-table td { vertical-align: middle; }
+.verify-row { display: flex; gap: 6px; align-items: center; }
+.verify-row select {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid #b9c4ce;
+  border-radius: 8px;
+}
 
 .footer {
   text-align: center;

@@ -5,7 +5,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.nio.file.Path;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -32,6 +35,14 @@ class PredictorTest {
             1.99, 1.99, 7.95, 3.68, 2.160326087, 36, 30, 0.8333333333, 0.68, 2.07,
             45.16, 17.1, 0.57, 92.0, 0, 0, 0, 0, 0, 1.0, 0, 110, 80, 3, 3,
             18.0, 18.0, 8.5};
+
+    // Dataset row 9 (true label 0): screening P(PCOS) ~= 0.258, prediction 1.
+    // (Found by scanning all 541 rows through the screening model.)
+    private static final double[] SCREENING_BUG_CASE = {
+            36.0, 52.0, 150.0, 23.11111111, 15.0, 80.0, 20.0, 10.0, 4.0, 2.0, 4.0, 0.0, 0.0,
+            1.99, 1.99, 2.8, 1.51, 1.854304636, 40.0, 38.0, 0.95, 6.65, 1.61, 11.74,
+            27.7, 0.25, 125.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 110.0, 80.0, 1.0, 1.0,
+            14.0, 17.0, 2.5};
 
     @Test
     void fullModelPredictsSamplePatientsCorrectly() {
@@ -70,6 +81,80 @@ class PredictorTest {
                         && store.getMetrics().deployedThreshold.threshold < 1);
         assertTrue(store.getMetrics().screeningThreshold.threshold > 0
                         && store.getMetrics().screeningThreshold.threshold < 1);
+    }
+
+    @Test
+    void screeningConfidenceIsProbabilityOfPredictedClass() {
+        // Dataset row 9 (true label 0): screening P(PCOS) ~= 0.258 — above
+        // the 0.25 threshold, so the prediction is PCOS, but below 0.5.
+        // Confidence must be 0.258 (the PREDICTED class's probability), not
+        // max(p, 1-p) = 0.742, which is the No-PCOS side's probability.
+        // The old formula got this wrong for 64 of the 219 screening
+        // PCOS predictions in the dataset.
+        ModelStore.Prediction p = store.predict(SCREENING_BUG_CASE, "screening");
+        assertEquals(1, p.prediction(), "p ~= 0.258 clears the 0.25 screening threshold");
+        assertTrue(p.probability() > 0.25 && p.probability() < 0.5,
+                "this case must sit between threshold and 0.5, was " + p.probability());
+        assertEquals(p.probability(), p.confidence(), 1e-9,
+                "confidence must be P(PCOS) when the prediction is PCOS, even below 0.5");
+    }
+
+    @Test
+    void fullModeConfidenceIsProbabilityOfPredictedClass() {
+        // Sample 1 (true 0): p ~= 0.099, prediction 0 -> confidence 1 - p.
+        ModelStore.Prediction p1 = store.predict(SAMPLE1);
+        assertEquals(0, p1.prediction());
+        assertEquals(1.0 - p1.probability(), p1.confidence(), 1e-9,
+                "confidence must be P(No PCOS) when the prediction is No PCOS");
+        // Sample 2 (true 1): p ~= 0.857, prediction 1 -> confidence p.
+        ModelStore.Prediction p2 = store.predict(SAMPLE2);
+        assertEquals(1, p2.prediction());
+        assertEquals(p2.probability(), p2.confidence(), 1e-9,
+                "confidence must be P(PCOS) when the prediction is PCOS");
+    }
+
+    @Test
+    void reloadFromSameDirectoryKeepsConsistentPredictions() throws Exception {
+        Path resourcesDir = Path.of(getClass().getResource("/metrics.json").toURI()).getParent();
+        ModelStore.Prediction before = store.predict(SAMPLE2);
+        store.reload(resourcesDir);
+        ModelStore.Prediction after = store.predict(SAMPLE2);
+        assertTrue(store.isReady());
+        assertEquals(before.prediction(), after.prediction());
+        assertEquals(before.probability(), after.probability(), 1e-12);
+        assertEquals(before.confidence(), after.confidence(), 1e-12);
+        assertEquals(before.model(), after.model());
+        assertEquals(before.threshold(), after.threshold(), 1e-12);
+    }
+
+    @Test
+    void concurrentPredictDuringReloadNeverSeesMixedState() throws Exception {
+        Path resourcesDir = Path.of(getClass().getResource("/metrics.json").toURI()).getParent();
+        java.util.concurrent.atomic.AtomicBoolean failed = new java.util.concurrent.atomic.AtomicBoolean(false);
+        Thread reader = new Thread(() -> {
+            try {
+                for (int i = 0; i < 200; i++) {
+                    ModelStore.Prediction p = store.predict(SAMPLE2);
+                    // Invariant that a mixed snapshot would break: confidence
+                    // is always the probability of the predicted class.
+                    double expected = p.prediction() == 1 ? p.probability() : 1.0 - p.probability();
+                    if (Math.abs(p.confidence() - expected) > 1e-9) {
+                        failed.set(true);
+                    }
+                    if (p.prediction() != 0 && p.prediction() != 1) {
+                        failed.set(true);
+                    }
+                }
+            } catch (Exception e) {
+                failed.set(true);
+            }
+        });
+        reader.start();
+        for (int i = 0; i < 10; i++) {
+            store.reload(resourcesDir);
+        }
+        reader.join();
+        assertTrue(!failed.get(), "concurrent predict/reload must never observe a mixed snapshot");
     }
 
     @Test
