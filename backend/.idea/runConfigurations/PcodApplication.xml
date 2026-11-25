@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="PcodApplication" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="com.pcod.PcodApplication" />
+    <module name="pcod-prediction-backend" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
