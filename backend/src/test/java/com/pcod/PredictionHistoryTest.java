@@ -182,13 +182,13 @@ class PredictionHistoryTest {
         long id = Long.parseLong(body.replaceAll(".*\"id\"\\s*:\\s*(\\d+).*", "$1"));
 
         // Invalid value -> 400.
-        mockMvc.perform(patch("/api/predictions/" + id).header("X-Admin-Key", "test-admin-key")
+        mockMvc.perform(patch("/api/predictions/" + id + "/outcome").header("X-Admin-Key", "test-admin-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"verifiedOutcome\": 2}"))
                 .andExpect(status().isBadRequest());
 
         // Valid value -> 200, stored on the record.
-        mockMvc.perform(patch("/api/predictions/" + id).header("X-Admin-Key", "test-admin-key")
+        mockMvc.perform(patch("/api/predictions/" + id + "/outcome").header("X-Admin-Key", "test-admin-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"verifiedOutcome\": 1}"))
                 .andExpect(status().isOk())
