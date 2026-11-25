@@ -10,7 +10,7 @@ from patient clinical attributes using ensemble machine learning.
   Dr. APJ Abdul Kalam Technical University, Lucknow
 - **Stack:** Frontend HTML, CSS, JavaScript, React (Vite) · Backend Java 17 +
   Spring Boot 3.2.5 · Database MySQL 8.x · IDE IntelliJ IDEA · ML library
-  Smile 3.1.1 (Java — no Python anywhere in this project)
+  Smile 3.1.1 (Java ML library)
 
 > Educational demo — a screening aid, not a medical diagnosis. Consult a doctor.
 

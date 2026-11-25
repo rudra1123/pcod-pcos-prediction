@@ -9,7 +9,7 @@
 | Tuning | 5-fold stratified cross-validation on the train split only (seed 42): hyperparameter grids, feature subsets from Random Forest importance rankings re-computed inside each CV fold (ranked on that fold's training part only), clipping on/off, minority oversampling on/off. Preprocessing re-fitted inside every fold. |
 | Deployed model | Soft Voting Ensemble — chosen by best train CV, not by test accuracy. |
 | Verified history rows used | 0 (only doctor-verified outcomes are ever used for training) |
-| Library / stack | Java 17, Spring Boot 3.2.5, Smile 3.1.1 (Java ML, no Python) |
+| Library / stack | Java 17, Spring Boot 3.2.5, Smile 3.1.1 (Java ML) |
 
 ## Measured test results (held-out test set, n = 108)
 

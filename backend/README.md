@@ -8,8 +8,7 @@ Central): Random Forest, Bagging, AdaBoost, Gradient Boosting, a soft-voting
 ensemble of those four, and a screening Gradient Boosting model trained on
 non-invasive features only. Five baselines (majority class, Logistic
 Regression, single Decision Tree, linear SVM, KNN) are trained and reported
-the same way for comparison. There is no Python code anywhere in this
-backend, and no Python ML library is used. Predictions are stored in MySQL
+the same way for comparison. Predictions are stored in MySQL
 (`prediction_records` table); the API is documented with Swagger/OpenAPI.
 
 ## Measured results (held-out test set, 108 patients)
@@ -620,8 +619,7 @@ open `http://localhost:5173`; Swagger UI is at
 Compose 2.40.3) but no container can start (mount-namespace creation is
 blocked), so the Compose stack could not be started and the frontend image
 could not be built here. The YAML was validated
-(`python3 -c yaml.safe_load`, services mysql/backend/frontend parse
-correctly) and both Dockerfiles were written from the project's actual
+(services mysql/backend/frontend parse correctly) and both Dockerfiles were written from the project's actual
 build steps (Maven package for the backend, `npm ci && npm run build`
 then nginx for the frontend), but the one-command start must be
 verified on a machine with Docker before it is relied on.
@@ -684,8 +682,7 @@ ways:
 1. **Maven cannot reach the internet from Java here** (raw TCP from Java
    processes is blocked), so dependencies were populated with `curl` by
    dev-only helper scripts used during development in this VM — those
-   scripts are not shipped with the project, and the delivered app
-   contains no Python code. The build runs here with `mvn -o` (offline)
+   scripts are not shipped with the project. The build runs here with `mvn -o` (offline)
    against the already-populated local Maven repository. None of this
    affects the project: the `pom.xml` is a standard Spring Boot 3.2.5
    project and IntelliJ will resolve it normally.
