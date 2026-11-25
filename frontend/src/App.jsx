@@ -246,6 +246,51 @@ function ConfusionMatrix({ cm, modelName }) {
   )
 }
 
+// Animated SVG progress ring for the prediction probability.
+// Pure CSS transition on stroke-dashoffset; the ring sweeps from 0 to the
+// final value on mount. No numbers are changed — only how they are drawn.
+function ProgressRing({ fraction, label, tone }) {
+  const [shown, setShown] = useState(0)
+  const target = Number.isFinite(fraction) ? Math.max(0, Math.min(1, fraction)) : 0
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setShown(target))
+    return () => cancelAnimationFrame(raf)
+  }, [target])
+  const R = 62
+  const C = 2 * Math.PI * R
+  const offset = C * (1 - shown)
+  return (
+    <div className="ring-wrap" role="img" aria-label={label}>
+      <svg viewBox="0 0 160 160" className="ring-svg" aria-hidden="true">
+        <circle cx="80" cy="80" r={R} className="ring-track" />
+        <circle
+          cx="80" cy="80" r={R}
+          className={`ring-fill ring-${tone}`}
+          strokeDasharray={C}
+          strokeDashoffset={offset}
+        />
+      </svg>
+      <div className="ring-center">
+        <span className="ring-value">{label}</span>
+        <span className="ring-caption">probability</span>
+      </div>
+    </div>
+  )
+}
+
+// Dashboard stat card. Renders nothing when the value is absent —
+// no numbers are invented when the backend does not provide them.
+function StatCard({ label, value, sub, delay }) {
+  if (value === null || value === undefined) return null
+  return (
+    <div className="stat-card animate-in" style={{ animationDelay: `${delay}ms` }}>
+      <span className="stat-label">{label}</span>
+      <span className="stat-value">{value}</span>
+      {sub && <span className="stat-sub">{sub}</span>}
+    </div>
+  )
+}
+
 export default function App() {
   const [features, setFeatures] = useState(FALLBACK_FEATURES)
   const [featuresFromApi, setFeaturesFromApi] = useState(false)
@@ -383,6 +428,14 @@ export default function App() {
       cancelled = true
     }
   }, [])
+
+  // Smooth-scroll the result into view when a new prediction arrives.
+  useEffect(() => {
+    if (result) {
+      const el = document.getElementById('result-panel')
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [result])
 
   // --- Validation --------------------------------------------------------
   function validateValue(f, raw) {
@@ -731,15 +784,23 @@ export default function App() {
 
   return (
     <div className="page">
-      <header className="header">
-        <h1>Cognitive Analytics in Healthcare — PCOD Prediction</h1>
-        <p className="team">
-          Team: Priyansh Kr. Yadav, Rudra Pratap Singh, Rajneesh Pal
-          {' | '}Guide: Mrs. Rashi Chaudhary
-        </p>
-        <p className="college">
-          Galgotias College of Engineering and Technology, AKTU
-        </p>
+      <header className="header animate-in">
+        <div className="header-main">
+          <span className="header-eyebrow">Galgotias College of Engineering and Technology · AKTU</span>
+          <h1>Cognitive Analytics in Healthcare</h1>
+          <p className="header-sub">PCOD / PCOS prediction with ensemble machine learning</p>
+          <p className="team">
+            Team: Priyansh Kr. Yadav, Rudra Pratap Singh, Rajneesh Pal
+            {' | '}Guide: Mrs. Rashi Chaudhary
+          </p>
+        </div>
+        <div className="header-status">
+          <span className={`status-pill ${backendStatus === 'online' ? 'status-online' : backendStatus === 'offline' ? 'status-offline' : 'status-checking'}`}>
+            <span className="status-dot" aria-hidden="true" />
+            {backendStatus === 'online' ? 'Backend connected' : backendStatus === 'offline' ? 'Backend offline' : 'Checking backend…'}
+          </span>
+          <span className="header-model">{bestModel ? bestModel.name : 'Soft Voting Ensemble'}</span>
+        </div>
       </header>
 
       <div className="banner banner-disclaimer" role="note">
@@ -758,13 +819,25 @@ export default function App() {
         </div>
       )}
       {backendStatus === 'online' && (
-        <div className="banner banner-ok" role="status">
+        <div className="banner banner-ok animate-in" role="status">
           Backend connected at {API_BASE || 'http://localhost:8080'} — ready to predict.
         </div>
       )}
 
+      {models && bestModel && (
+        <div className="stat-row" aria-label="Model overview">
+          <StatCard label="Deployed model" value={bestModel.name} sub="Chosen on cross-validation" delay={0} />
+          <StatCard label="Test accuracy" value={pct(bestModel.accuracy)} sub="Held-out test set, n = 108" delay={80} />
+          <StatCard label="ROC-AUC" value={modelAuc(bestModel) !== null ? modelAuc(bestModel).toFixed(3) : null} sub="Discrimination" delay={160} />
+          {screeningModel && (
+            <StatCard label="Screening recall" value={pct(screeningModel.recall)} sub="23 non-invasive features" delay={240} />
+          )}
+        </div>
+      )}
+
       <main>
-        <section className="card">
+        <section className="card animate-in" style={{ animationDelay: '120ms' }}>
+          <span className="card-eyebrow">Screening tool</span>
           <h2>Predict PCOD / PCOS</h2>
           <p className="muted">
             Enter the patient&apos;s 41 clinical features, or load a real sample
@@ -797,8 +870,8 @@ export default function App() {
           </div>
 
           <form onSubmit={handlePredict} noValidate>
-            {SECTIONS.map((section) => (
-              <fieldset key={section.id} className="section">
+            {SECTIONS.map((section, sIdx) => (
+              <fieldset key={section.id} className="section animate-in" style={{ animationDelay: `${200 + sIdx * 90}ms` }}>
                 <legend>{section.title}</legend>
                 <div className="fields">
                   {section.keys.map((key) => {
@@ -854,27 +927,31 @@ export default function App() {
             ))}
 
             <div className="mode-toggle" role="group" aria-label="Prediction mode">
-              <span className="mode-toggle-label">Prediction mode:</span>
-              <label>
-                <input
-                  type="radio"
-                  name="predict-mode"
-                  value="full"
-                  checked={predictMode === 'full'}
-                  onChange={() => setPredictMode('full')}
-                />
-                {' '}Full — all 41 features (deployed model)
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="predict-mode"
-                  value="screening"
-                  checked={predictMode === 'screening'}
-                  onChange={() => setPredictMode('screening')}
-                />
-                {' '}Screening — 23 non-invasive features only
-              </label>
+              <span className="mode-toggle-label">Prediction mode</span>
+              <div className="segmented">
+                <label className={predictMode === 'full' ? 'seg-option seg-active' : 'seg-option'}>
+                  <input
+                    type="radio"
+                    name="predict-mode"
+                    value="full"
+                    checked={predictMode === 'full'}
+                    onChange={() => setPredictMode('full')}
+                  />
+                  <span className="seg-title">Full</span>
+                  <span className="seg-sub">41 features · deployed model</span>
+                </label>
+                <label className={predictMode === 'screening' ? 'seg-option seg-active' : 'seg-option'}>
+                  <input
+                    type="radio"
+                    name="predict-mode"
+                    value="screening"
+                    checked={predictMode === 'screening'}
+                    onChange={() => setPredictMode('screening')}
+                  />
+                  <span className="seg-title">Screening</span>
+                  <span className="seg-sub">23 non-invasive features</span>
+                </label>
+              </div>
               <p className="muted mode-toggle-note">
                 Screening needs no lab or ultrasound values — any of those
                 entered above are ignored in screening mode. The screening
@@ -884,38 +961,57 @@ export default function App() {
             </div>
 
             <button type="submit" className="predict-btn" disabled={predicting}>
-              {predicting ? 'Predicting…' : 'Predict'}
+              {predicting ? (<><span className="spinner" aria-hidden="true" /> Predicting…</>) : 'Predict'}
             </button>
           </form>
 
+          {predicting && (
+            <div className="predicting-panel" role="status" aria-live="polite">
+              <span className="spinner spinner-lg" aria-hidden="true" />
+              <p><strong>Running the ensemble…</strong></p>
+              <p className="muted">
+                {predictMode === 'screening'
+                  ? 'Scoring 23 non-invasive features against the screening model.'
+                  : 'Scoring 41 features against the deployed model.'}
+              </p>
+              <div className="skeleton skeleton-line" />
+              <div className="skeleton skeleton-line short" />
+            </div>
+          )}
+
           {error && (
-            <div className="banner banner-error" role="alert">{error}</div>
+            <div className="banner banner-error animate-in" role="alert">{error}</div>
           )}
 
           {result && (
             <div
-              className={`result ${isPcos ? 'result-pcos' : 'result-no-pcos'}`}
+              id="result-panel"
+              className={`result ${isPcos ? 'result-pcos' : 'result-no-pcos'} animate-in`}
               role="status"
             >
-              <h3>{isPcos ? 'PCOS Detected' : 'No PCOS Detected'}</h3>
-              <p className="result-label">
-                {result.label ? `Model output: ${result.label}` : ''}
-              </p>
-              {probabilityPct && (
-                <>
-                  <p className="result-prob">
-                    Probability: <strong>{probabilityPct}</strong>
-                    {confidencePct && confidencePct !== probabilityPct
-                      ? ` (confidence ${confidencePct})`
-                      : ''}
+              <div className="result-top">
+                {probabilityPct && (
+                  <ProgressRing
+                    fraction={probability ?? 0}
+                    label={probabilityPct}
+                    tone={isPcos ? 'danger' : 'ok'}
+                  />
+                )}
+                <div className="result-head">
+                  <span className="result-eyebrow">Screening result</span>
+                  <h3>{isPcos ? 'PCOS Detected' : 'No PCOS Detected'}</h3>
+                  <p className="result-label">
+                    {result.label ? `Model output: ${result.label}` : ''}
                   </p>
-                  <div className="prob-bar" aria-label={`Probability ${probabilityPct}`}>
-                    <div
-                      className="prob-fill"
-                      style={{ width: probabilityPct }}
-                    />
-                  </div>
-                </>
+                </div>
+              </div>
+              {probabilityPct && (
+                <p className="result-prob">
+                  Probability: <strong>{probabilityPct}</strong>
+                  {confidencePct && confidencePct !== probabilityPct
+                    ? ` (confidence ${confidencePct})`
+                    : ''}
+                </p>
               )}
               <p className="result-model">
                 Model: <strong>{result.model || '—'}</strong>
@@ -1001,7 +1097,8 @@ export default function App() {
           )}
         </section>
 
-        <section className="card">
+        <section className="card animate-in">
+          <span className="card-eyebrow">Evidence</span>
           <h2>How it works / Models compared</h2>
           {screeningModel && (
             <p className="screening-note" role="note">
@@ -1134,7 +1231,8 @@ export default function App() {
           </p>
         </section>
 
-        <section className="card">
+        <section className="card animate-in">
+          <span className="card-eyebrow">Admin</span>
           <h2>Prediction history (admin only)</h2>
           <p className="muted">
             Saved predictions, latest first. History contains patient health
