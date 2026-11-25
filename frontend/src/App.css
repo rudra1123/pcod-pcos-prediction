@@ -545,16 +545,18 @@ button:disabled { opacity: 0.6; cursor: wait; }
 /* Print: only the result summary prints, as the downloadable PDF. */
 .print-only { display: none; }
 @media print {
+  @page { size: A4; margin: 12mm; }
   body { background: #fff; }
-  body * { visibility: hidden; }
-  #result-print, #result-print * { visibility: visible; }
+  /* Hide everything except the print block. Never use
+     `visibility: hidden` here — hidden elements still occupy space,
+     which printed the whole page height as blank pages. display: none
+     removes them from the layout entirely. */
+  .page > *:not(#result-print) { display: none !important; }
   #result-print {
     display: block;
-    position: absolute;
-    top: 0;
-    left: 0;
+    position: static;
     width: 100%;
-    padding: 8px 16px;
+    padding: 0;
     font-size: 12px;
     color: #000;
   }
@@ -564,6 +566,8 @@ button:disabled { opacity: 0.6; cursor: wait; }
     padding: 3px 6px;
     text-align: left;
   }
+  #result-print tr { page-break-inside: avoid; }
+  #result-print h1, #result-print h2 { page-break-after: avoid; }
 }
 
 .models-table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; }
