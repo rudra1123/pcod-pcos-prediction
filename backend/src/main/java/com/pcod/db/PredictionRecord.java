@@ -65,6 +65,18 @@ public class PredictionRecord {
     @Column(nullable = false, length = 64)
     private String model;
 
+    /**
+     * Patient name and ID, as entered in the form (optional — null when not
+     * given). They are identifying details, stored only because the form
+     * collects them; they are never sent to the model and never used in
+     * training.
+     */
+    @Column(name = "patient_name", length = 100)
+    private String patientName;
+
+    @Column(name = "patient_id", length = 64)
+    private String patientId;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -136,6 +148,22 @@ public class PredictionRecord {
 
     public String getModel() {
         return model;
+    }
+
+    public String getPatientName() {
+        return patientName;
+    }
+
+    public void setPatientName(String patientName) {
+        this.patientName = patientName;
+    }
+
+    public String getPatientId() {
+        return patientId;
+    }
+
+    public void setPatientId(String patientId) {
+        this.patientId = patientId;
     }
 
     public LocalDateTime getCreatedAt() {

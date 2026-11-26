@@ -40,6 +40,10 @@ npm run preview      # serves the built output on http://localhost:5173
 - A prominent disclaimer banner sits under the header on every page load:
   **"Screening aid, not a diagnosis — consult a doctor."** The same wording
   is in the footer and on the result card / printout.
+- **Patient Details (optional):** name and patient ID, entered at the top of
+  the form. They show on the result card and the printout, are sent with the
+  predict request, and are stored with the history record in MySQL — they
+  are never sent to the model.
 - The prediction form is rendered dynamically from that feature list, grouped
   into 4 sections: Basic, Hormonal & Lab, Symptoms & Lifestyle, Vitals &
   Ultrasound. Binary (Y/N) fields render as No/Yes dropdowns; the rest are

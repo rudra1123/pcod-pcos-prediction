@@ -98,7 +98,7 @@ Swagger UI: http://localhost:8080/swagger-ui.html
 | `GET /api/features` | The 41 features (`key, label, min, max, default, type, screening, required`) |
 | `GET /api/models` | All models with measured metrics, confusion matrices, ROC curves, thresholds |
 | `GET /api/models/{name}/importance` | Top feature importances (Random Forest / Gradient Boosting / screening) |
-| `POST /api/predict[?mode=full\|screening]` | Predict. 11 non-invasive fields are required (age, bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise); missing any → HTTP 400 listing them. Other missing fields are mean-imputed and listed in `imputedFields` / `imputedCount`. `confidence` is the probability of the predicted class. Empty `{}` → 400. |
+| `POST /api/predict[?mode=full\|screening]` | Predict. 11 non-invasive fields are required (age, bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise); missing any → HTTP 400 listing them. Other missing fields are mean-imputed and listed in `imputedFields` / `imputedCount`. `confidence` is the probability of the predicted class. Optional `patientName` / `patientId` in the body are stored with the history record (never model inputs). Empty `{}` → 400. |
 | `GET /api/predictions?limit=N` | Prediction history, latest first (needs MySQL + `X-Admin-Key` header; 401 without/wrong key, 503 if `ADMIN_KEY` is unset) |
 | `GET /api/predictions/{id}` | One saved prediction (needs MySQL + `X-Admin-Key`) |
 | `PATCH /api/predictions/{id}/outcome` | Set a doctor-verified outcome (`{"verifiedOutcome": 0\|1}`) — retraining uses only verified rows with no imputed fields. Needs the `X-Admin-Key` header. |

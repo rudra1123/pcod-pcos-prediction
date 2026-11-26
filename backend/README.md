@@ -307,7 +307,9 @@ connect — predictions are the one exception: see below).
 `PredictionRecord` (`prediction_records` table) stores the 41 input
 features as JSON (`features_json`), prediction (0/1), label, probability,
 confidence, model name and timestamp, plus the doctor-verification fields
-below. Saving happens inside `POST /api/predict` after a successful
+below. It also stores the optional `patient_name` / `patient_id` entered in
+the form (shown on the result card, the printout and the history table) —
+they are never sent to the model and never used in training. Saving happens inside `POST /api/predict` after a successful
 prediction; **a database failure never breaks the prediction response** —
 it is logged and the prediction is still returned. If the database is not
 available at all, the history endpoints answer 503 with a clear message

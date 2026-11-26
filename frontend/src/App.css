@@ -444,6 +444,7 @@ button:disabled { opacity: 0.6; cursor: wait; }
   margin-bottom: 2px;
 }
 .result-label, .result-model { margin: 6px 0; }
+.result-patient { margin: 6px 0; }
 .result-imputed { margin: 10px 0; font-weight: 600; }
 .result-warning {
   background: var(--warn-bg);

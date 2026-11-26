@@ -387,7 +387,11 @@ public class PcodController {
                     + "values, not on the patient's own data. Treat it with extra caution; "
                     + "it is not a diagnosis.");
         }
-        saveHistory(raw, p, imputedFields);
+        // Optional patient details (never model inputs): stored with the
+        // history record only.
+        String patientName = textField(body, "patientName", 100);
+        String patientId = textField(body, "patientId", 64);
+        saveHistory(raw, p, imputedFields, patientName, patientId);
         return ResponseEntity.ok(out);
     }
 
@@ -496,6 +500,19 @@ public class PcodController {
         }
     }
 
+    /** Optional short text field from the request body (trimmed, capped, null when absent/blank). */
+    private static String textField(JsonNode body, String key, int maxLen) {
+        JsonNode v = body.get(key);
+        if (v == null || !v.isTextual()) {
+            return null;
+        }
+        String s = v.asText().trim();
+        if (s.isEmpty()) {
+            return null;
+        }
+        return s.length() > maxLen ? s.substring(0, maxLen) : s;
+    }
+
     /**
      * Stores the prediction just made. The features saved are the values the
      * model actually saw — a feature missing from the request is stored as
@@ -505,7 +522,8 @@ public class PcodController {
      * is logged and swallowed: the prediction response has already been
      * built and must still be returned.
      */
-    private void saveHistory(double[] raw, ModelStore.Prediction p, List<String> imputedFields) {
+    private void saveHistory(double[] raw, ModelStore.Prediction p, List<String> imputedFields,
+                             String patientName, String patientId) {
         if (history == null) {
             return;
         }
@@ -523,6 +541,8 @@ public class PcodController {
                     p.prediction(), p.label(),
                     round(p.probability()), round(p.confidence()), p.model());
             record.setImputedFieldsJson(mapper.writeValueAsString(imputedFields));
+            record.setPatientName(patientName);
+            record.setPatientId(patientId);
             history.save(record);
         } catch (Exception e) {
             log.warn("Could not save prediction to database (prediction still returned): {}",
@@ -533,6 +553,8 @@ public class PcodController {
     private Map<String, Object> toHistoryJson(PredictionRecord r) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", r.getId());
+        out.put("patientName", r.getPatientName());
+        out.put("patientId", r.getPatientId());
         try {
             out.put("features", mapper.readValue(r.getFeaturesJson(), Map.class));
         } catch (JacksonException e) {

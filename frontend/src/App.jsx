@@ -295,6 +295,12 @@ export default function App() {
   const [features, setFeatures] = useState(FALLBACK_FEATURES)
   const [featuresFromApi, setFeaturesFromApi] = useState(false)
   const [values, setValues] = useState(() => ({ ...SAMPLE_PCOS.values }))
+  // Optional patient details (name + ID). Shown on the result card and the
+  // printout, sent with the predict request and stored with the history
+  // record — never sent to the model.
+  const [patientName, setPatientName] = useState('Sample Patient 2')
+  const [patientId, setPatientId] = useState('')
+  const [submittedPatient, setSubmittedPatient] = useState(null)
   const [backendStatus, setBackendStatus] = useState('checking') // checking | online | offline
   const [models, setModels] = useState(null)
   const [modelsError, setModelsError] = useState('')
@@ -501,6 +507,9 @@ export default function App() {
   function loadSample(sample) {
     setValues({ ...sample.values })
     setLoadedSample(sample.name)
+    setPatientName(sample === SAMPLE_PCOS ? 'Sample Patient 2' : 'Sample Patient 1')
+    setPatientId('')
+    setSubmittedPatient(null)
     setResult(null)
     setResultAt(null)
     setSubmittedValues(null)
@@ -511,6 +520,9 @@ export default function App() {
   function resetForm() {
     setValues(defaultsFromFeatures(features))
     setLoadedSample('Dataset-average defaults')
+    setPatientName('')
+    setPatientId('')
+    setSubmittedPatient(null)
     setResult(null)
     setResultAt(null)
     setSubmittedValues(null)
@@ -523,6 +535,9 @@ export default function App() {
     for (const f of features) empty[f.key] = ''
     setValues(empty)
     setLoadedSample('Cleared — no values entered')
+    setPatientName('')
+    setPatientId('')
+    setSubmittedPatient(null)
     setResult(null)
     setResultAt(null)
     setSubmittedValues(null)
@@ -535,6 +550,7 @@ export default function App() {
     setError('')
     setResult(null)
     setResultAt(null)
+    setSubmittedPatient(null)
 
     // 1) Empty input must never produce a confident prediction.
     const filledCount = features.filter((f) => {
@@ -582,6 +598,12 @@ export default function App() {
         payload[f.key] = Number(v)
       }
     }
+    // Optional patient details — stored with the history record, never
+    // model inputs.
+    const patientNameTrimmed = patientName.trim()
+    const patientIdTrimmed = patientId.trim()
+    if (patientNameTrimmed) payload.patientName = patientNameTrimmed
+    if (patientIdTrimmed) payload.patientId = patientIdTrimmed
 
     setPredicting(true)
     try {
@@ -609,6 +631,7 @@ export default function App() {
       setResult(data)
       setResultAt(new Date())
       setSubmittedValues(payload)
+      setSubmittedPatient({ name: patientNameTrimmed || null, id: patientIdTrimmed || null })
       setSubmittedImputedKeys(imputedKeys)
     } catch (err) {
       setError(
@@ -886,6 +909,35 @@ export default function App() {
           </div>
 
           <form onSubmit={handlePredict} noValidate>
+            <fieldset className="section animate-in" style={{ animationDelay: '90ms' }}>
+              <legend>Patient Details</legend>
+              <div className="fields">
+                <label className="field">
+                  <span className="field-label">Patient Name</span>
+                  <input
+                    type="text"
+                    data-field="patientName"
+                    value={patientName}
+                    onChange={(e) => setPatientName(e.target.value)}
+                    placeholder="e.g. Sample Patient 2"
+                    maxLength={100}
+                  />
+                  <span className="range">Optional — shown on the result and printout, saved with the record.</span>
+                </label>
+                <label className="field">
+                  <span className="field-label">Patient ID</span>
+                  <input
+                    type="text"
+                    data-field="patientId"
+                    value={patientId}
+                    onChange={(e) => setPatientId(e.target.value)}
+                    placeholder="e.g. P-1024"
+                    maxLength={64}
+                  />
+                  <span className="range">Optional — shown on the result and printout, saved with the record.</span>
+                </label>
+              </div>
+            </fieldset>
             {SECTIONS.map((section, sIdx) => (
               <fieldset key={section.id} className="section animate-in" style={{ animationDelay: `${140 + sIdx * 50}ms` }}>
                 <legend>{section.title}</legend>
@@ -1021,6 +1073,12 @@ export default function App() {
                   </p>
                 </div>
               </div>
+              {submittedPatient && (submittedPatient.name || submittedPatient.id) && (
+                <p className="result-patient">
+                  Patient: <strong>{submittedPatient.name || '—'}</strong>
+                  {submittedPatient.id ? ` (ID: ${submittedPatient.id})` : ''}
+                </p>
+              )}
               {probabilityPct && (
                 <p className="result-prob">
                   Probability: <strong>{probabilityPct}</strong>
@@ -1283,6 +1341,7 @@ export default function App() {
               <thead>
                 <tr>
                   <th>#</th>
+                  <th>Patient</th>
                   <th>Date</th>
                   <th>Prediction</th>
                   <th>Probability</th>
@@ -1295,6 +1354,7 @@ export default function App() {
                 {history.map((r) => (
                   <tr key={r.id}>
                     <td>{r.id}</td>
+                    <td>{r.patientName || '—'}{r.patientId ? ` (${r.patientId})` : ''}</td>
                     <td>{r.createdAt ? new Date(r.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</td>
                     <td>{r.label || (r.prediction === 1 ? 'PCOS Detected' : 'No PCOS Detected')}</td>
                     <td>{pct(r.probability) ?? '—'}</td>
@@ -1366,8 +1426,15 @@ export default function App() {
             {imputedCount} of {N_FEATURES} fields were imputed ({imputedSource}).
             Missing values were filled with the training average.
           </p>
-          <h2>Patient summary (non-identifying inputs)</h2>
-          <p>No name, ID, or contact details are collected or shown.</p>
+          <h2>Patient summary (inputs)</h2>
+          {submittedPatient && (submittedPatient.name || submittedPatient.id) ? (
+            <p>
+              Patient: {submittedPatient.name || '—'}
+              {submittedPatient.id ? ` (ID: ${submittedPatient.id})` : ''}
+            </p>
+          ) : (
+            <p>No name or ID was given for this prediction.</p>
+          )}
           <table>
             <thead>
               <tr><th>Feature</th><th>Value</th><th>Unit</th><th>Imputed?</th></tr>
