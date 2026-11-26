@@ -1,147 +1,79 @@
-# Cognitive Analytics in Healthcare — PCOD Prediction (Working Project)
+# Cognitive Analytics in Healthcare — PCOD Prediction
 
-A full working web application that predicts Polycystic Ovarian Disorder (PCOD)
-from patient clinical attributes using ensemble machine learning.
+A working web application that predicts Polycystic Ovarian Disorder (PCOD) from patient clinical attributes using ensemble machine learning.
 
-- **Team:** Priyansh Kr. Yadav (2300970130098), Rudra Pratap Singh (2300970130107),
-  Rajneesh Pal (2300970130103)
+- **Team:** Priyansh Kr. Yadav (2300970130098), Rudra Pratap Singh (2300970130107), Rajneesh Pal (2300970130103)
 - **Guide:** Mrs. Rashi Chaudhary
-- **College:** Galgotias College of Engineering and Technology, Greater Noida —
-  Dr. APJ Abdul Kalam Technical University, Lucknow
-- **Stack:** Frontend HTML, CSS, JavaScript, React (Vite) · Backend Java 25 (LTS) +
-  Spring Boot 4.1.2 · Database MySQL 8.x · IDE IntelliJ IDEA · ML library
-  Smile 6.3.0 (Java ML library)
+- **College:** Galgotias College of Engineering and Technology, Greater Noida — Dr. APJ Abdul Kalam Technical University, Lucknow
+- **Stack:** React (Vite) frontend · Java 25 (LTS) + Spring Boot 4.1.2 backend · MySQL 8.x · Smile 6.3.0 (Java ML library) · IntelliJ IDEA
 
-> Educational demo — a screening aid, not a medical diagnosis. Consult a doctor.
+> Screening aid, not a medical diagnosis. Consult a doctor.
 
 ## Project structure
 
 ```
 pcod-working-project/
 ├── README.md                  # this file
-├── docker-compose.yml         # one-command start: MySQL + backend + frontend
+├── docker-compose.yml         # MySQL + backend + frontend
 ├── data/
-│   ├── pcos_dataset.csv       # verified dataset, 541 rows × 45 columns
+│   ├── pcos_dataset.csv       # 541 rows × 45 columns
 │   ├── PCOS_data_without_infertility.xlsx   # original Kaggle file
-│   ├── SCHEMA.md              # dataset provenance, columns, missing values
-│   ├── LARGE_DATASET.md       # larger-dataset search: what was checked, verdict
-│   └── sample_patients.json   # 3 real sample patients for testing
+│   ├── SCHEMA.md              # dataset provenance and columns
+│   ├── LARGE_DATASET.md       # larger-dataset search and verdict
+│   └── sample_patients.json   # 3 sample patients for testing
 ├── backend/                   # Java + Spring Boot (Maven), port 8080
-│   ├── pom.xml
-│   ├── src/main/java/com/pcod/
-│   │   ├── PcodApplication.java
-│   │   ├── controller/        # REST API
-│   │   ├── db/                # PredictionRecord entity + repository (MySQL)
-│   │   ├── ml/                # preprocessing, ModelStore, TrainingService
-│   │   └── trainer/ModelTrainer.java   # reproducible training (CLI)
-│   ├── src/main/resources/
-│   │   ├── application.properties
-│   │   ├── metrics.json       # measured metrics for every model (Smile 6.3.0 re-train, 2026-11-26)
-│   │   ├── models/            # trained Smile models (*.ser) + MODEL_CARD.md
-│   │   ├── preprocessing.json # fitted imputer means, clip bounds, scaler
-│   │   └── schema.sql         # prediction_records table
-│   └── README.md              # backend details, API reference, MySQL setup
 └── frontend/                  # React + Vite, port 5173
-    ├── src/App.jsx            # prediction form, result card, metrics charts
-    ├── src/features.js        # 41-feature fallback copy + sample patients
-    └── README.md              # frontend details
 ```
+
+See `backend/README.md` for the API, method and test details, and `frontend/README.md` for the UI.
 
 ## Dataset
 
-- **Source:** Kaggle dataset "Polycystic Ovary Syndrome (PCOS)" by Prasoon
-  Kottarathil — https://www.kaggle.com/datasets/prasoonkottarathil/polycystic-ovary-syndrome-pcos
-  (data from 10 hospitals in Kerala, India). File used:
-  `PCOS_data_without_infertility.xlsx`, sheet `Full_new`.
-- **Verified on disk: 541 patients × 45 columns** — exactly as specified.
-  Target `PCOS (Y/N)`: 0 = no PCOS (364, 67.3%), 1 = PCOS (177, 32.7%).
-  After dropping 2 ID columns and 1 junk trailing column, **41 input features**.
-  Only 2 genuinely missing cells (mean-imputed). Full column list and
-  provenance: `data/SCHEMA.md`.
-- **Larger datasets:** a dedicated search (Kaggle, UCI, GitHub, IEEE DataPort,
-  Zenodo, PhysioNet) found **no genuine larger real-patient PCOS dataset**.
-  The 2,000-row and 2,539-row Kaggle files are augmented copies of the same
-  541 patients (proven by repeated patient IDs and near-duplicate rows) and
-  were rejected — merging them would leak duplicates across train/test. A
-  10,000-row file exists but its provenance is unverified, so it was not used.
-  Details: `data/LARGE_DATASET.md`. Training therefore uses the verified
-  541-row dataset only; no patient counts are inflated anywhere.
+- **Source:** Kaggle dataset "Polycystic Ovary Syndrome (PCOS)" by Prasoon Kottarathil — https://www.kaggle.com/datasets/prasoonkottarathil/polycystic-ovary-syndrome-pcos (data from 10 hospitals in Kerala, India). File used: `PCOS_data_without_infertility.xlsx`, sheet `Full_new`.
+- **541 patients × 45 columns.** Target `PCOS (Y/N)`: 0 = no PCOS (364, 67.3%), 1 = PCOS (177, 32.7%). After dropping 2 ID columns and 1 junk column, **41 input features**. Only 2 cells are genuinely missing (mean-imputed). Full column list: `data/SCHEMA.md`.
+- **Larger datasets:** a search across Kaggle, UCI, GitHub, IEEE DataPort, Zenodo and PhysioNet found no genuine larger real-patient PCOS dataset. The 2,000-row and 2,539-row Kaggle files are augmented copies of the same 541 patients, so they were not used — merging them would leak duplicates across train/test. Details: `data/LARGE_DATASET.md`.
 
-## Measured results (held-out test set, n = 108: 73 no-PCOS / 35 PCOS)
+## Results (held-out test set, n = 108: 73 no-PCOS / 35 PCOS)
 
-Stratified 80/20 split, seed 42 (train 433 / test 108). Preprocessing fitted
-on the training set only (mean imputation → 1st/99th-percentile clipping →
-standardisation, re-fitted per CV fold). Hyperparameters and thresholds were
-chosen on 5-fold train-only cross-validation; the test set was evaluated once.
-Full per-model details (ROC-AUC, PR-AUC, Brier score, confusion matrix,
-bootstrap 95% CI, ROC-curve points, thresholds): `backend/src/main/resources/metrics.json`
-and `backend/src/main/resources/models/MODEL_CARD.md`.
+Stratified 80/20 split, seed 42 (train 433 / test 108). Preprocessing was fitted on the training set only (mean imputation → 1st/99th-percentile clipping → standardisation, re-fitted per CV fold). Hyperparameters and thresholds were picked on 5-fold train-only cross-validation; the test set was evaluated once. Full details (ROC-AUC, PR-AUC, Brier score, confusion matrices, bootstrap 95% CI, thresholds): `backend/src/main/resources/metrics.json` and `backend/src/main/resources/models/MODEL_CARD.md`.
 
 | Model | Accuracy | Precision | Recall | F1 | ROC-AUC | TP/FP/FN/TN | 95% CI |
 |---|---|---|---|---|---|---|---|
 | **Soft Voting Ensemble — deployed** | **88.89%** | 92.59% | 71.43% | 80.65% | 0.927 | 25/2/10/71 | 82.4–94.4% |
 | Gradient Boosting | 87.96% | 84.38% | 77.14% | 80.60% | 0.945 | 27/5/8/68 | 81.5–93.5% |
-| Random Forest | 87.96% | 95.83% | 65.71% | 78.02% | 0.930 | 23/1/12/72 | 80.6–93.5% |
+| Random Forest | 87.96% | 95.83% | 65.71% | 77.97% | 0.930 | 23/1/12/72 | 80.6–93.5% |
 | Bagging | 87.04% | 86.21% | 71.43% | 78.13% | 0.900 | 25/4/10/69 | 80.6–92.6% |
 | AdaBoost | 86.11% | 81.25% | 74.29% | 77.61% | 0.928 | 26/6/9/67 | 78.7–91.7% |
-| Gradient Boosting — Screening (23 non-invasive features) | 82.41% | 72.22% | 74.29% | 73.24% | 0.880 | 26/10/9/63 | 75.0–88.9% |
+| Gradient Boosting — Screening (23 non-invasive features) | 82.41% | 72.22% | 74.29% | 73.24% | 0.879 | 26/10/9/63 | 75.0–88.9% |
 
-Baselines (same split/CV): Majority class 67.59% · Logistic Regression 85.19% ·
-Decision Tree 82.41% · SVM (Linear) 87.96% · KNN 84.26%.
+Baselines (same split/CV): Majority class 67.59% · Logistic Regression 85.19% · Decision Tree 82.41% · SVM (Linear) 87.96% · KNN 84.26%.
 
-**Honest note on accuracy:** the 99% target was **not** reached. The measured
-best test accuracy is 88.89% (train CV 91.92%). With only 108 test rows, the
-95% confidence interval is wide (82.4–94.4%) and 86% vs 89% is a difference of
-2–3 patients — not significant. The screening model trades precision for
-recall (threshold 0.30, tuned on CV only): recall rises from 62.86% to 74.29%.
-The screening model misses some cases that are only visible via follicle
-counts / AMH (e.g. sample patient 2) — documented in `backend/README.md`.
-
-**No refit on all 541 rows — by design:** the shipped models were trained on
-the 433-row train split only, so the reported test metrics describe the exact
-artefact being served. Refitting on all 541 rows after evaluation would use
-~25% more data but then the test metrics would no longer describe the shipped
-model — see `backend/README.md` (Limitations) and `MODEL_CARD.md`.
-
-**Follicle counts are near-diagnostic:** antral follicle counts differ
-sharply between the classes (follicleL mean 9.79 with PCOS vs 4.35 without;
-follicleR 10.76 vs 4.64) — Rotterdam-adjacent morphology features. The
-23-feature screening model (no follicle counts, no AMH, no labs) exists
-precisely to answer that, and still reaches 82.41% test accuracy with
-74.29% recall.
+**Note on accuracy:** the 99% target was not reached — the best measured test accuracy is 88.89% (train CV 91.92%). With only 108 test rows the 95% CI is wide (82.4–94.4%), so 86% vs 89% is a difference of 2–3 patients. The screening model trades precision for recall (threshold 0.30, tuned on CV only). The shipped models were trained on the 433-row train split only, so the reported test metrics describe the exact model being served.
 
 ## How to run
 
-### Option A — Docker Compose (one command)
+### Option A — Docker Compose
 
 ```bash
 cd pcod-working-project
-# Required first: create a .env file with MYSQL_ROOT_PASSWORD and
-# ADMIN_KEY (both are required — the stack will not start without them).
+# First create a .env file with MYSQL_ROOT_PASSWORD and ADMIN_KEY
+# (both are required — the stack will not start without them).
 docker compose up --build
 # Frontend: http://localhost:5173   Backend: http://localhost:8080
 ```
 
-MySQL's port 3306 is **not** published to the host (the backend reaches it
-over the Compose network; use `docker exec -it pcod-mysql mysql -uroot -p`
-for host access). Retrained models are kept in the named volume
-`pcod-resources` (`/app/resources` in the backend container), so they
-survive container recreation.
+### Option B — IntelliJ IDEA + MySQL (for the viva demo)
 
-### Option B — IntelliJ IDEA + MySQL (recommended for the viva demo)
-
-1. Install Java 25 (Temurin 25 LTS), Maven, Node.js, and MySQL Server 8.x; start MySQL.
-2. Set the database credentials (never hard-code a real password):
+1. Install Java 25 (Temurin 25 LTS), Maven, Node.js and MySQL Server 8.x; start MySQL.
+2. Set the credentials (never hard-code a real password):
    ```bash
    export MYSQL_URL='jdbc:mysql://localhost:3306/pcod_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC'
    export MYSQL_USERNAME=root
    export MYSQL_PASSWORD='your-password'
    export ADMIN_KEY='your-admin-key'   # required for POST /api/retrain
    ```
-   The `pcod_db` database and the `prediction_records` table are created
-   automatically (`schema.sql`, `ddl-auto=none`).
-3. Backend — open `backend/` in IntelliJ IDEA as a Maven project (JDK 25)
-   and run `PcodApplication`, or from a terminal:
+   The `pcod_db` database and the `prediction_records` table are created automatically (`schema.sql`, `ddl-auto=none`).
+3. Backend — open the project root in IntelliJ IDEA and run the **Run Full Project** configuration (runs backend + frontend), or from a terminal:
    ```bash
    cd backend
    mvn clean package
@@ -154,15 +86,11 @@ survive container recreation.
    npm run dev    # http://localhost:5173
    ```
 
-> Prediction-only run (no database): if MySQL is not available, the backend
-> can still serve predictions with JPA excluded:
-> `java -jar target/pcod-prediction-backend-1.0.0.jar --spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration,org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration`
-> — history endpoints then return a clear "database not available" message
-> instead of breaking predictions. Full details in `backend/README.md`.
+> Without a database the backend can still serve predictions (start it with the JPA auto-configuration excluded — see `backend/README.md`); history endpoints then return a clear "database not available" message instead of breaking predictions.
 
 ## API (base: http://localhost:8080)
 
-API docs (Swagger UI): http://localhost:8080/swagger-ui.html
+Swagger UI: http://localhost:8080/swagger-ui.html
 
 | Method & path | What it does |
 |---|---|
@@ -170,12 +98,12 @@ API docs (Swagger UI): http://localhost:8080/swagger-ui.html
 | `GET /api/features` | The 41 features (`key, label, min, max, default, type, screening, required`) |
 | `GET /api/models` | All models with measured metrics, confusion matrices, ROC curves, thresholds |
 | `GET /api/models/{name}/importance` | Top feature importances (Random Forest / Gradient Boosting / screening) |
-| `POST /api/predict[?mode=full\|screening]` | Predict. 11 non-invasive fields are required (age, bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise); missing any → HTTP 400 listing them. Other missing fields are mean-imputed and listed in `imputedFields` / counted in `imputedCount`. `confidence` is the probability of the predicted class. `modelAccuracy` is the model's test accuracy (108-row test set, with 95% CI + note) — it describes the model, not this prediction. A `warning` is added when 21+ fields were imputed. Empty `{}` → 400. |
+| `POST /api/predict[?mode=full\|screening]` | Predict. 11 non-invasive fields are required (age, bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise); missing any → HTTP 400 listing them. Other missing fields are mean-imputed and listed in `imputedFields` / `imputedCount`. `confidence` is the probability of the predicted class. Empty `{}` → 400. |
 | `GET /api/predictions?limit=N` | Prediction history, latest first (needs MySQL + `X-Admin-Key` header; 401 without/wrong key, 503 if `ADMIN_KEY` is unset) |
-| `GET /api/predictions/{id}` | One saved prediction (needs MySQL + `X-Admin-Key`, same 401/503 rules) |
-| `PATCH /api/predictions/{id}/outcome` | Set a doctor-verified outcome (`{"verifiedOutcome": 0\|1}`) — retraining uses only verified rows, and only verified rows with no imputed fields. Needs the `X-Admin-Key` header. |
-| `POST /api/retrain` | Start a retrain in the background — returns **202 Accepted** with `{jobId, status: "RUNNING", statusUrl}` (header `X-Admin-Key: $ADMIN_KEY`; 409 if a retrain is already running) |
-| `GET /api/retrain/status` / `GET /api/retrain/{jobId}` | Retrain job status (`RUNNING` / `DONE` / `FAILED` + metrics summary). Needs the `X-Admin-Key` header. |
+| `GET /api/predictions/{id}` | One saved prediction (needs MySQL + `X-Admin-Key`) |
+| `PATCH /api/predictions/{id}/outcome` | Set a doctor-verified outcome (`{"verifiedOutcome": 0\|1}`) — retraining uses only verified rows with no imputed fields. Needs the `X-Admin-Key` header. |
+| `POST /api/retrain` | Start a retrain in the background — returns **202 Accepted** with `{jobId, status}` (header `X-Admin-Key`; 409 if a retrain is already running) |
+| `GET /api/retrain/status` | Retrain job status (`RUNNING` / `DONE` / `FAILED` + metrics summary). Needs the `X-Admin-Key` header. |
 
 ### Example — predict (sample patient 2, a true PCOS case)
 
@@ -186,13 +114,10 @@ curl -X POST http://localhost:8080/api/predict -H 'Content-Type: application/jso
 Response (verified live):
 
 ```json
-{"prediction":1,"label":"PCOS Detected","probability":0.8566,"confidence":0.8566,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.5,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
+{"prediction":1,"label":"PCOS Detected","probability":0.8453,"confidence":0.8453,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.55,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
 ```
 
-Sample patient 1 (true label 0) predicts `0` with probability `0.099`.
-Screening mode (`?mode=screening`) on sample 2 returns `0` (probability
-0.1214 < threshold 0.25) — its non-invasive profile is mild; the case is only
-visible via follicle counts / AMH. That is the honest trade-off of screening.
+Screening mode (`?mode=screening`) on the same patient returns `0` (probability 0.1033 < threshold 0.30) — its non-invasive profile is mild and the case is only visible via follicle counts / AMH. That is the trade-off of screening.
 
 ### Tests
 
@@ -203,31 +128,17 @@ cd frontend && npm run build   # 0 errors
 
 ## Privacy
 
-Prediction records are stored only in the local MySQL database
-(`prediction_records`, with a nullable doctor-verified `verified_outcome`).
-No patient-identifying information is stored. Any real deployment would need
-patient consent, anonymisation, and compliance with India's DPDP Act 2023 —
-see `backend/README.md`.
+Prediction records are stored only in the local MySQL database (`prediction_records`, with a nullable doctor-verified `verified_outcome`). No patient-identifying information is stored. Any real deployment would need patient consent, anonymisation, and compliance with India's DPDP Act 2023 — see `backend/README.md`.
 
-## Sources consulted
+## Sources
 
-- Dataset: Kaggle, Prasoon Kottarathil, "Polycystic Ovary Syndrome (PCOS)"
-  (see `data/SCHEMA.md`).
-- Java ML: Smile 6.3.0 (https://haifengl.github.io/smile/) — Random Forest,
-  Gradient Boosting, AdaBoost, Bagging, Logistic Regression, SVM, KNN.
-- Spring Boot 4.1 / Spring Data JPA / springdoc-openapi 3.2.0, React 18 + Vite,
-  MySQL 8 — official documentation.
+- Dataset: Kaggle, Prasoon Kottarathil, "Polycystic Ovary Syndrome (PCOS)" (see `data/SCHEMA.md`).
+- Smile 6.3.0 (https://haifengl.github.io/smile/) — Random Forest, Gradient Boosting, AdaBoost, Bagging, Logistic Regression, SVM, KNN.
+- Spring Boot 4.1 / Spring Data JPA / springdoc-openapi 3.2.0, React 18 + Vite, MySQL 8 — official documentation.
 
-## Limitations (honest)
+## Limitations
 
-- 541 patients is a small dataset; the 99% accuracy target was not reached
-  (best measured test accuracy 88.89%, 95% CI 82.4–94.4%). A larger verified labelled dataset
-  would be needed to do better — none compatible was publicly available.
-- The screening (non-invasive) model is less accurate (82.41%) and misses
-  cases that need lab/ultrasound findings.
-- In the development VM used to build this, Java could not open TCP
-  connections to MySQL, so the live app→MySQL write path and Docker Compose
-  could not be live-tested there: the schema was verified against real MySQL
-  8.0.46 with the native client, the JPA layer is covered by tests, and the
-  live jar was tested prediction-only. Run `docker compose up --build` or the
-  IntelliJ steps above on a normal machine to verify the full path.
+- 541 patients is a small dataset; the 99% accuracy target was not reached (best measured test accuracy 88.89%, 95% CI 82.4–94.4%). A larger verified labelled dataset would be needed to do better — none compatible was publicly available.
+- The screening (non-invasive) model is less accurate (82.41%) and misses cases that need lab/ultrasound findings.
+- Single-centre region (10 hospitals in Kerala) and a single dataset — no external validation cohort yet.
+- The API is a screening aid, not a diagnosis; a clinician's judgement is required for any real decision.

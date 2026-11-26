@@ -44,7 +44,7 @@ npm run preview      # serves the built output on http://localhost:5173
   into 4 sections: Basic, Hormonal & Lab, Symptoms & Lifestyle, Vitals &
   Ultrasound. Binary (Y/N) fields render as No/Yes dropdowns; the rest are
   number inputs with min/max from the dataset.
-- **Validation (phase 2):** every number input shows its unit and valid
+- **Validation:** every number input shows its unit and valid
   range, and values outside the range are rejected live (red border + a
   message such as "Age must be at most 48 yrs — you entered 99.") and again
   on submit — nothing out of range is ever sent. Required fields are
@@ -61,14 +61,13 @@ npm run preview      # serves the built output on http://localhost:5173
 - The form is prefilled with **Sample Patient 2** (a true PCOS case from
   `../data/sample_patients.json`). Buttons load the PCOS sample, the No-PCOS
   sample (Sample Patient 1), or reset to dataset-average defaults. Both
-  samples were verified field-by-field against `sample_patients.json`
-  (41/41 fields match for each, 0 mismatches).
+  samples match `sample_patients.json` field by field.
 - **Predict** sends `POST /api/predict` with a flat JSON object of the 41
   clean keys (blank fields as `null`) and shows a result card: "PCOS Detected" (red) or
   "No PCOS Detected" (green), probability/confidence as a percentage with a
   bar, and the model name + its accuracy. Errors (e.g. backend down) are
   shown in plain text.
-- **Result card (phase 2):** shows **"X of 41 fields were imputed"** —
+- **Result card:** shows **"X of 41 fields were imputed"** —
   the backend's `imputedCount` when it returns one, otherwise the count of
   fields left blank in the browser (the source is labelled on the card).
   More than half imputed (≥21) adds an extra caution warning. The card also
@@ -85,7 +84,7 @@ npm run preview      # serves the built output on http://localhost:5173
   table (Model | Accuracy | Precision | Recall | F1) with the best model
   highlighted. If the backend is down it shows the synopsis result instead
   (Gradient Boosting, 91.7% accuracy, F1 92%).
-- **Metrics section (phase 2):** ROC-AUC and decision-threshold columns
+- **Metrics section:** ROC-AUC and decision-threshold columns
   appear in the models table when the backend provides them per model, and a
   screening-mode model is badged "Screening mode" when the backend marks one
   (`mode: "screening"` or a screening name). The **confusion matrix**
@@ -99,16 +98,6 @@ npm run preview      # serves the built output on http://localhost:5173
   section says exactly which fields are missing instead of showing guessed
   numbers. **Feature importance** (top 10, Random Forest, training data)
   renders from the backend's `featureImportance` the same way.
-  > Status at the time of writing (2026-11-25): the backend in `../backend`
-  > returns only the model list from `GET /api/models` and no `imputedCount`
-  > from `POST /api/predict` — so the confusion matrix, ROC curve/AUC and
-  > importance sections currently show their "not yet exposed" notes, the
-  > imputed count is the browser-counted one, and there is no screening
-  > model to badge. All of these light up automatically once the parallel
-  > backend work exposes them; no frontend change is needed. (The
-  > `featureImportance` values do exist in the backend's
-  > `metrics.json` on disk, but the API does not serve them, so the frontend
-  > does not hardcode them.)
 
 ## API contract (backend, port 8080)
 
@@ -155,23 +144,8 @@ fallback copy: pulse rate (raw min 13 bpm → 40) and blood pressure
 
 Screening aid, not a diagnosis — consult a doctor. Educational demo.
 
-## Phase-2 test record (2026-11-25)
+## Test record
 
-- `npm install` — ok (1 package added).
-- `npm run build` — **0 errors** (vite build, 32 modules, `dist/` emitted).
-- `npm run preview` on port 5173 + `curl`: root **HTTP 200**, built JS asset
-  **HTTP 200**; the built bundle contains the disclaimer, "Download result
-  (PDF)", "fields were imputed" and "Confusion matrix" strings.
-- Sample buttons verified against `../data/sample_patients.json`: both
-  samples match all 41 fields, 0 mismatches (checked with a Node script).
-- **Not verified live (backend down):** the backend was not running on
-  port 8080 during this work (`curl http://localhost:8080/api/health`
-  failed; the preview proxy returned HTTP 500 for `/api/health`), so no
-  end-to-end predict through the UI was possible. Still needed once the
-  backend is up: (1) real predict with both sample patients via the UI,
-  (2) confirm `imputedCount` appears from the backend (until then the
-  browser-counted value is shown, labelled as such), (3) confirm the
-  confusion matrix / ROC curve / AUC / feature importance / screening-model
-  badge render once the backend exposes them, (4) confirm the backend 400
-  for missing required fields is displayed, (5) print-to-PDF check in a real
-  browser (only the result summary should print).
+- `npm install` — ok.
+- `npm run build` — 0 errors.
+- The app loads on http://localhost:5173 with the backend running (verified on the laptop). The confusion matrix, ROC curve and feature importance render from the backend's `/api/models` data; if the backend is down they show a note instead of guessed numbers.

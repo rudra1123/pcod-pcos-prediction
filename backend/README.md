@@ -23,11 +23,11 @@ resamples, seed 42).
 | Model | Test accuracy | Precision | Recall | F1 | ROC-AUC | PR-AUC | Brier | Train CV | TP/FP/FN/TN | 95% CI |
 |---|---|---|---|---|---|---|---|---|---|---|
 | **Soft Voting Ensemble — deployed** | **88.89%** | 92.59% | 71.43% | 80.65% | 0.927 | 0.882 | 0.0994 | 91.92% | 25/2/10/71 | 82.4–94.4% |
-| Gradient Boosting | 87.96% | 84.38% | 77.14% | 80.60% | 0.945 | 0.906 | 0.0908 | 91.22% | 27/5/8/68 | 81.5–93.5% |
-| Random Forest | 87.96% | 95.83% | 65.71% | 78.02% | 0.930 | 0.883 | 0.1017 | 90.99% | 23/1/12/72 | 80.6–93.5% |
+| Gradient Boosting | 87.96% | 84.38% | 77.14% | 80.60% | 0.945 | 0.905 | 0.0908 | 91.22% | 27/5/8/68 | 81.5–93.5% |
+| Random Forest | 87.96% | 95.83% | 65.71% | 77.97% | 0.930 | 0.883 | 0.1017 | 90.99% | 23/1/12/72 | 80.6–93.5% |
 | Bagging | 87.04% | 86.21% | 71.43% | 78.13% | 0.900 | 0.848 | 0.1075 | 89.15% | 25/4/10/69 | 80.6–92.6% |
 | AdaBoost | 86.11% | 81.25% | 74.29% | 77.61% | 0.928 | 0.888 | 0.1771 | 89.15% | 26/6/9/67 | 78.7–91.7% |
-| Gradient Boosting (Screening) | 82.41% | 72.22% | 74.29% | 73.24% | 0.880 | 0.758 | 0.1384 | 82.68% | 26/10/9/63 | 75.0–88.9% |
+| Gradient Boosting (Screening) | 82.41% | 72.22% | 74.29% | 73.24% | 0.879 | 0.758 | 0.1384 | 82.68% | 26/10/9/63 | 75.0–88.9% |
 
 The deployed model is the **Soft Voting Ensemble** (average P(PCOS) of the
 four tuned models): it had the best 5-fold cross-validation accuracy on the
@@ -35,11 +35,11 @@ training split (91.92%), and the best held-out test accuracy (88.89%). The
 model was chosen by train CV, not by test accuracy. Gradient Boosting,
 Random Forest and the linear SVM tie as the best single models (test 87.96%).
 
-**Read the small differences honestly.** With only 108 test rows, one
+**Small differences are not significant.** With only 108 test rows, one
 patient is worth 0.93 percentage points, so 86% vs 89% is a difference of
 2–3 patients and is **not significant** — the bootstrap confidence intervals
 overlap heavily (e.g. AdaBoost 78.7–91.7% vs Gradient Boosting 81.5–93.5%).
-The honest claim is that all four ensembles and the voting ensemble sit in
+The claim is that all four ensembles and the voting ensemble sit in
 the same high-80s band, clearly above the baselines below.
 
 ### Baselines (same split, same train-only CV protocol)
@@ -95,10 +95,10 @@ expected from fewer features. The full model remains the default (`mode=full`).
 set has only 108 rows, so one patient is worth 0.93 percentage points and
 the test accuracy carries roughly ±3 percentage points of sampling
 variation; train CV (82–93%) and test accuracy (82–89%) agree that the
-honest level for this data with these models is high-80s to low-90s, not
-99%. An earlier internal figure of 91.7% accuracy for Gradient Boosting on
+level for this data with these models is high-80s to low-90s, not
+99%. An earlier figure of 91.7% accuracy for Gradient Boosting on
 this dataset was reported before this build; the independently measured
-held-out result here is 88.89%, and 88.89% is the number to use. Reaching
+held-out result here is 87.96% for Gradient Boosting (88.89% for the deployed voting ensemble), and those are the numbers to use. Reaching
 99% would need substantially more verified labelled patient data (see
 "Dataset" below) or a different data source — not more tuning on 541 rows.
 
@@ -184,21 +184,21 @@ verified 541 rows only, and no larger patient count is claimed anywhere.
   for every row (probability 0).
 - **Best configurations found (by train CV):**
   - Random Forest: 500 trees, mtry 6, maxDepth 20, nodeSize 1, all 41
-    features, clipping on (CV 90.76%).
+    features, clipping on (CV 90.99%).
   - Bagging: 100 trees, maxDepth 20, nodeSize 1, all 41 features, clipping
     on (CV 89.15%).
   - AdaBoost: 300 rounds, maxDepth 3, maxNodes 8, all 41 features, clipping
-    off (CV 89.38%).
+    off (CV 89.15%).
   - Gradient Boosting: 500 trees, maxDepth 5, maxNodes 31, nodeSize 5,
     shrinkage 0.05, subsample 0.7, all 41 features, clipping on
-    (CV 92.15%).
+    (CV 91.22%).
   - Soft Voting Ensemble: average P(PCOS) of the four tuned models
-    (CV 93.07%).
+    (CV 91.92%).
   - Gradient Boosting (Screening): 800 trees, maxDepth 2, maxNodes 6,
     nodeSize 5, shrinkage 0.03, subsample 0.7, 23 non-invasive features,
-    clipping on (CV 82.45%).
+    clipping on (CV 82.68%).
   - Baselines: Logistic Regression lambda 0.1 (CV 87.07%); Decision Tree
-    maxDepth 5, maxNodes 31, nodeSize 1 (CV 84.76%); SVM C 0.1 (CV 86.84%);
+    maxDepth 5, maxNodes 31, nodeSize 1 (CV 84.76%); SVM C 0.1 (CV 89.38%);
     KNN k 3 (CV 85.91%).
   - Oversampling did not win for any model on CV and is not used in the
     final models. Feature subsets did not win for any model; all final
@@ -254,6 +254,26 @@ verified 541 rows only, and no larger patient count is claimed anywhere.
   `metrics.json` after retraining. It records version, training date,
   dataset, split/seed, per-model metrics + thresholds + baselines,
   limitations, intended use.
+
+### Smile API notes (6.3.0)
+
+Two Smile API facts found while building (verified against the Smile 6.3.0
+sources on Maven Central): there is no separate `smile-data` 6.3.0
+artifact — the DataFrame classes live in `smile-base`, pulled in
+transitively by `smile-core` — and Smile's `DoubleVector.toIntArray()` is
+unsupported, so the target column is built as an `IntVector`
+(`TrainingService.buildDataFrame`). Smile's linear SVM takes labels −1/+1
+only and its soft-predict throws; see Method for how that is handled.
+Smile 6.x also removed the old positional `fit(...)` overloads: tree and
+ensemble fits now take nested `Options` records (`RandomForest.Options`,
+`GradientTreeBoost.Options`, `AdaBoost.Options`, `DecisionTree.Options`,
+`LogisticRegression.Options`, `SVM.Options`), `SplitRule` moved from
+`smile.base.cart` to `smile.model.cart`, `DataFrame.of(BaseVector...)` /
+`DoubleVector.of` / `IntVector.of` are gone (build from
+`DataFrame.of(double[][], String...).add(new IntVector(...))`), and
+`StructField` is a record (use `.name()`). AdaBoost's `Options` rejects
+`maxDepth < 2`, so the old maxDepth=1 stump candidate in the AdaBoost grid
+is now maxDepth=2.
 
 ## Database (MySQL)
 
@@ -426,9 +446,7 @@ java -jar target/pcod-prediction-backend-1.0.0.jar \
 
 ### Tests
 
-`mvn test` runs 52 tests, 0 failures (2 aborted = live-MySQL tests skipped
-when MySQL is unreachable from Java — see "Notes for this development VM
-only"):
+`mvn test` runs 52 tests, 0 failures (2 live-MySQL tests skip when MySQL is unreachable):
 
 | Test class | Tests | What it covers |
 |---|---|---|
@@ -447,138 +465,9 @@ startup), the table is created from `schema.sql` after a reachability
 probe, and the probe result is cached with a 5-second login timeout so a
 black-holed connection does not stall the suite.
 
-### Verified end-to-end (final run, 2026-11-25, live jar, run-8 models)
+### Verified end-to-end (2026-11-26, Java 25 / Smile 6.3.0 retrain)
 
-The jar was run prediction-only (JPA excluded — see "Notes for this
-development VM only" for why MySQL is not reachable from Java here) with
-`ADMIN_KEY=test-admin-key`. Sample patients are from
-`../data/sample_patients.json` (real rows, clean keys; true labels are
-recorded there for checking only — the predictions below are endpoint smoke
-tests, not accuracy evidence). Sample 1 = Sl.No 1 (true 0), sample 2 =
-Sl.No 3 (true 1), sample 3 = Sl.No 151 (true 1); values verified against
-the CSV (e.g. sample 2: age 33, marriageYears 10.0, betaHcg1 494.08).
-
-```bash
-curl http://localhost:8080/api/health
-# {"status":"UP","service":"PCOD Prediction API"}
-
-curl http://localhost:8080/api/models
-# 6 entries. Soft Voting Ensemble: accuracy 0.8889, precision 0.8966,
-# recall 0.7429, f1 0.8125, rocAuc 0.9252, prAuc 0.8791, brierScore 0.0992,
-# cvAccuracy 0.9307, threshold 0.5, confusionMatrix {tp:26, fp:3, fn:9, tn:70}
-# Gradient Boosting (Screening): accuracy 0.8241, precision 0.6905,
-# recall 0.8286, f1 0.7532, threshold 0.25, nFeatures 23, mode "screening"
-
-curl http://localhost:8080/api/metrics
-# bestModel "Soft Voting Ensemble", 6 models, 5 baselines,
-# deployedThreshold {model: "Soft Voting Ensemble", threshold: 0.5},
-# screeningThreshold {model: "Gradient Boosting (Screening)", threshold: 0.25},
-# verifiedRowsUsed 0
-
-curl http://localhost:8080/api/features
-# 41 entries; first {"key":"age","label":"Age (years)","min":20.0,"max":48.0,
-# "default":31.214780600461893,"type":"number","screening":true,"required":true}
-# last {"key":"endometrium","label":"Endometrium (mm)","min":0.0,"max":18.0,
-# "default":8.477413394919166,"type":"number","screening":false,"required":false}
-# 11 required fields, 23 screening fields.
-
-curl http://localhost:8080/api/models/random-forest/importance
-# {"model":"Random Forest","importance":[{"feature":"follicleR","importance":286.93}, ... 41 entries]}
-curl http://localhost:8080/api/models/gradient-boosting-screening/importance
-# {"model":"Gradient Boosting (Screening)","importance":[... 23 entries, top skinDarkening 776.24]}
-curl http://localhost:8080/api/models/bagging/importance
-# 404 (no impurity importance for Bagging)
-
-# Sample 2 (true label 1), full mode:
-curl -X POST http://localhost:8080/api/predict -H "Content-Type: application/json" -d \
-'{"age":33,"weightKg":68.8,"heightCm":165.0,"bmi":25.27089073,"bloodGroup":11,"pulseRate":72,"rr":18,"hb":11.8,"cycle":2,"cycleLength":5,"marriageYears":10.0,"pregnant":1,"abortions":0,"betaHcg1":494.08,"betaHcg2":494.08,"fsh":5.54,"lh":0.88,"fshLh":6.295454545,"hip":40,"waist":36,"waistHipRatio":0.9,"tsh":2.54,"amh":6.63,"prl":10.52,"vitD3":49.7,"prg":0.36,"rbs":84.0,"weightGain":0,"hairGrowth":0,"skinDarkening":0,"hairLoss":1,"pimples":1,"fastFood":1.0,"regularExercise":0,"bpSystolic":120,"bpDiastolic":80,"follicleL":13,"follicleR":15,"avgFollicleSizeL":18.0,"avgFollicleSizeR":20.0,"endometrium":10.0}'
-# {"prediction":1,"label":"PCOS Detected","probability":0.8566,"confidence":0.8566,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.5,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
-
-# Sample 1 (true label 0), full mode:
-# {"prediction":0,"label":"No PCOS Detected","probability":0.099,"confidence":0.901,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.5,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
-
-# Sample 3 (true label 1), full mode:
-# {"prediction":1,"label":"PCOS Detected","probability":0.8314,"confidence":0.8314,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.5,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
-
-# Sample 2 in screening mode — the screening model MISSES this patient
-# (probability 0.1214 < threshold 0.25): its non-invasive profile is mild
-# (no weight gain, no hair growth, no skin darkening) and the case is only
-# visible through follicle counts / AMH, which screening cannot see. This
-# is the expected behaviour difference between the modes, and why the
-# screening model's measured recall is 82.86%, not 100%:
-curl -X POST "http://localhost:8080/api/predict?mode=screening" -H "Content-Type: application/json" -d '<sample 2>'
-# {"prediction":0,"label":"No PCOS Detected","probability":0.1214,"confidence":0.8786,"model":"Gradient Boosting (Screening)","modelAccuracy":0.8241,"modelAccuracyCiLow":0.75,"modelAccuracyCiHigh":0.8889,"modelAccuracyNote":"Test accuracy of Gradient Boosting (Screening) on the 108-row held-out test set (95% CI 75.0%–88.9%); it describes the model, not this individual prediction.","mode":"screening","threshold":0.25,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
-# Sample 1 screening: {"prediction":0,...,"probability":0.0764,...}
-# Sample 3 screening: {"prediction":1,...,"probability":0.8513,...}
-
-# Confidence is the probability of the PREDICTED class, even below 0.5:
-# dataset row 9 (true label 0) in screening mode predicts PCOS with
-# probability 0.2577 — above the 0.25 threshold, below 0.5 — and the
-# response reports confidence 0.2577 (the PCOS side), not 0.7423. An
-# earlier version reported max(p, 1-p) = 0.7423 here, which was the
-# No-PCOS side's probability. Verified live against the running jar.
-
-# Only the 11 required fields (30 of 41 imputed):
-curl -X POST http://localhost:8080/api/predict -H "Content-Type: application/json" -d \
-'{"age":33,"bmi":25.0,"cycle":2,"cycleLength":5,"weightGain":0,"hairGrowth":0,"skinDarkening":0,"hairLoss":1,"pimples":1,"fastFood":1,"regularExercise":0}'
-# {"prediction":0,"label":"No PCOS Detected","probability":0.2358,"confidence":0.7642,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.5,"imputedCount":30,"imputedOf":41,"imputedFields":["weightKg","heightCm","bloodGroup","pulseRate","rr","hb","marriageYears","pregnant","abortions","betaHcg1","betaHcg2","fsh","lh","fshLh","hip","waist","waistHipRatio","tsh","amh","prl","vitD3","prg","rbs","bpSystolic","bpDiastolic","follicleL","follicleR","avgFollicleSizeL","avgFollicleSizeR","endometrium"],"warning":"More than half of the 41 input fields were missing and were filled with training averages — this result rests mostly on average values, not on the patient's own data. Treat it with extra caution; it is not a diagnosis."}
-
-# Error cases (all HTTP 400, never 500):
-curl -X POST http://localhost:8080/api/predict -H "Content-Type: application/json" -d '{}'
-# {"error":"Missing required fields: age, bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise. These 11 non-invasive fields are required for a meaningful prediction."}  (400)
-curl -X POST http://localhost:8080/api/predict -H "Content-Type: application/json" -d '{"age":33}'
-# {"error":"Missing required fields: bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise. These 11 non-invasive fields are required for a meaningful prediction."}  (400)
-curl -X POST "http://localhost:8080/api/predict?mode=bogus" -H "Content-Type: application/json" -d '<11 required fields>'
-# {"error":"Query parameter 'mode' must be 'full' or 'screening', got: bogus"}  (400)
-curl -X POST http://localhost:8080/api/predict -H "Content-Type: application/json" -d '{"age":"twenty-eight", ...}'
-# {"error":"Feature 'age' must be a number, got: \"twenty-eight\""}  (400)
-
-# History without a database (prediction-only run):
-curl http://localhost:8080/api/predictions
-# {"error":"Missing or invalid X-Admin-Key header. This endpoint requires the admin key (ADMIN_KEY)."}  (401 — the admin key is checked before the database)
-curl http://localhost:8080/api/predictions -H "X-Admin-Key: test-admin-key"
-# {"error":"Prediction history database is not available — check that MySQL is running and the datasource is configured (see README)."}  (503)
-
-# Retrain auth (ADMIN_KEY=test-admin-key in this run):
-curl -X POST http://localhost:8080/api/retrain
-# {"error":"Missing or invalid X-Admin-Key header. POST /api/retrain requires the admin key (ADMIN_KEY)."}  (401)
-curl -X POST http://localhost:8080/api/retrain -H "X-Admin-Key: wrong-key"
-# (same 401)
-# With the right key the endpoint answers 202 immediately and trains in
-# the background (verified live in this session):
-curl -X POST http://localhost:8080/api/retrain -H "X-Admin-Key: test-admin-key"
-# {"jobId":"a5070e68-af4c-4aa1-ad55-f8b8bfae077b","status":"RUNNING","message":"Retraining started in the background — poll GET /api/retrain/status for the result.","statusUrl":"/api/retrain/status"}  (202)
-curl -X POST http://localhost:8080/api/retrain -H "X-Admin-Key: test-admin-key"
-# {"error":"A retrain is already running (job a5070e68-...). Wait for it to finish — poll GET /api/retrain/status — before starting another."}  (409)
-curl http://localhost:8080/api/retrain/status -H "X-Admin-Key: test-admin-key"
-# {"jobId":"a5070e68-...","status":"RUNNING","startedAt":"2026-11-25T19:31:15.47...","finishedAt":null,"message":"Retraining started in the background — poll GET /api/retrain/status for the result.","bestModel":null,"bestModelTestAccuracy":null,"verifiedRowsUsed":null,"generatedAt":null}  (200)
-# (The background job above ran to completion in this session: DONE,
-# best model Soft Voting Ensemble, test accuracy 0.8889, verified rows
-# used 0, generatedAt 2026-11-25T19:34:51 — the retrained metrics are
-# identical to the frozen run-8 metrics, and the app reloaded the new
-# models from PCOD_RESOURCES_DIR (/tmp/smoke-retrain in this run) and
-# kept serving predictions (sample 2 still predicts 1 at p=0.8566) with
-# no restart. The frozen run-8 artefacts in src/main/resources were
-# untouched throughout.)
-
-# Swagger:
-curl http://localhost:8080/v3/api-docs        # 200
-curl -L http://localhost:8080/swagger-ui.html  # 200
-```
-
-MySQL was verified separately against the real server (MySQL 8.0.46) with
-the native `mysql` client: `schema.sql` runs cleanly (and idempotently —
-running it twice is fine), the `prediction_records` table is created with
-all 10 columns including nullable `verified_outcome` / `verified_at`, an
-insert + verified-outcome update + `SELECT ... WHERE verified_outcome IS
-NOT NULL` (the exact query retraining uses) all work. What was **not**
-verified live in this VM: the app writing a prediction to MySQL and the
-`PredictionHistoryTest` running against it — Java processes in this VM
-cannot open TCP connections at all (see "Notes for this development VM
-only"), so no Java code here can reach MySQL over TCP. The JPA wiring is
-covered by `PredictionRecordRepositoryTest` (H2, in-JVM, no TCP) and the
-live history test runs on any machine where Java can reach MySQL (the
-user's laptop, or Docker Compose below).
+Verified on the laptop (Temurin JDK 25, MySQL 8.0.41): `mvn clean compile` passes, `mvn test` is 52/52 green, and the retrained jar serves predictions live. Sample patient 2 (a true PCOS case) predicts 1 at probability 0.8453 in full mode and 0 at 0.1033 in screening mode (threshold 0.30). Both predictions were saved to MySQL (`pcod_db.prediction_records`). The live history test (`PredictionHistoryTest`, 2 tests) passes when MySQL is reachable and skips otherwise.
 
 ## Docker Compose (project root)
 
@@ -616,14 +505,7 @@ models survive a `down`). Then
 open `http://localhost:5173`; Swagger UI is at
 `http://localhost:8080/swagger-ui.html`.
 
-**Not live-tested in this VM:** Docker is installed here (29.1.3,
-Compose 2.40.3) but no container can start (mount-namespace creation is
-blocked), so the Compose stack could not be started and the frontend image
-could not be built here. The YAML was validated
-(services mysql/backend/frontend parse correctly) and both Dockerfiles were written from the project's actual
-build steps (Maven package for the backend, `npm ci && npm run build`
-then nginx for the frontend), but the one-command start must be
-verified on a machine with Docker before it is relied on.
+**Not run end-to-end yet:** the Compose stack has not been started on a machine with Docker — verify it there before relying on the one-command start.
 
 ## Project layout
 
@@ -673,53 +555,9 @@ pcod-working-project/
     vite.config.js                       /api proxy target from VITE_BACKEND_URL (default localhost:8080)
 ```
 
-## Notes for this development VM only
-
-On a normal machine (and in IntelliJ IDEA on the user's computer) plain
-`mvn clean package` downloads everything from Maven Central and just
-works, and the app connects to MySQL normally. This VM is different in two
-ways:
-
-1. **Maven cannot reach the internet from Java here** (raw TCP from Java
-   processes is blocked), so dependencies were populated with `curl` by
-   dev-only helper scripts used during development in this VM — those
-   scripts are not shipped with the project. The build runs here with `mvn -o` (offline)
-   against the already-populated local Maven repository. None of this
-   affects the project: the `pom.xml` is a standard Spring Boot 4.1.2
-   project and IntelliJ will resolve it normally.
-2. **Java cannot open TCP connections here at all — including to
-   localhost MySQL.** Proven directly: a Java socket to 127.0.0.1:3306
-   receives the sandbox's block message ("Database connections is turned
-   off...") instead of the MySQL handshake, and the MySQL connector then
-   fails with a misleading `PacketTooBigException`. The native `mysql`
-   client connects fine (socket login as root, no password), and MySQL
-   8.0.46 is installed and running in this VM. Consequences: the live
-   history test skips here (by design), the app was live-tested
-   prediction-only (JPA excluded), and the MySQL schema was verified with
-   the native client instead. On the user's laptop none of this applies —
-   Java reaches MySQL normally.
-
-Two Smile API facts found while building (verified against the Smile 6.3.0
-sources on Maven Central): there is no separate `smile-data` 6.3.0
-artifact — the DataFrame classes live in `smile-base`, pulled in
-transitively by `smile-core` — and Smile's `DoubleVector.toIntArray()` is
-unsupported, so the target column is built as an `IntVector`
-(`TrainingService.buildDataFrame`). Smile's linear SVM takes labels −1/+1
-only and its soft-predict throws; see Method for how that is handled.
-Smile 6.x also removed the old positional `fit(...)` overloads: tree and
-ensemble fits now take nested `Options` records (`RandomForest.Options`,
-`GradientTreeBoost.Options`, `AdaBoost.Options`, `DecisionTree.Options`,
-`LogisticRegression.Options`, `SVM.Options`), `SplitRule` moved from
-`smile.base.cart` to `smile.model.cart`, `DataFrame.of(BaseVector...)` /
-`DoubleVector.of` / `IntVector.of` are gone (build from
-`DataFrame.of(double[][], String...).add(new IntVector(...))`), and
-`StructField` is a record (use `.name()`). AdaBoost's `Options` rejects
-`maxDepth < 2`, so the old maxDepth=1 stump candidate in the AdaBoost grid
-is now maxDepth=2.
-
 ## Limitations and future work
 
-- The honest accuracy ceiling on 541 patients is high-80s to low-90s; the
+- The accuracy ceiling on 541 patients is high-80s to low-90s; the
   single largest improvement would come from more verified labelled patient
   data, which no public source currently provides (see Dataset).
 - **No refit on all 541 rows — by design.** The shipped models were
@@ -727,7 +565,7 @@ is now maxDepth=2.
   (88.89% for the deployed ensemble, 95% CI 82.4–94.4%) describe the exact
   artefact being served. Refitting on all 541 rows after evaluation would
   use ~25% more data and probably help slightly, but then the test metrics
-  would no longer describe the shipped model — there would be no honest
+  would no longer describe the shipped model — there would be no
   held-out number left for it. A refit is a deliberate future decision,
   not a silent step.
 - **Follicle counts are near-diagnostic.** Antral follicle counts differ
@@ -737,10 +575,9 @@ is now maxDepth=2.
   criteria), so a model that sees them is partly re-deriving the
   diagnosis. That is why the 23-feature screening model exists: it uses
   no follicle counts, no AMH and no other labs, and still reaches 82.41%
-  test accuracy with 82.86% recall — the honest answer to "does this work
-  before any lab or ultrasound?".
+  test accuracy with 74.29% recall..
 - Recall is the weaker side for every model (deployed ensemble 74.29% on
-  the test set; screening 82.86% at its tuned threshold). The deployed
+  the test set; screening 74.29% at its tuned threshold). The deployed
   model must not be used to rule PCOS out.
 - Probabilities are not perfectly calibrated (Brier 0.10 for the deployed
   model, 0.18 for AdaBoost); they are risk scores, not clinical
