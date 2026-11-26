@@ -1,8 +1,8 @@
 package com.pcod.ml;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import smile.base.cart.SplitRule;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import smile.model.cart.SplitRule;
 import smile.classification.AdaBoost;
 import smile.classification.Classifier;
 import smile.classification.DecisionTree;
@@ -14,7 +14,6 @@ import smile.classification.SVM;
 import smile.data.DataFrame;
 import smile.data.Tuple;
 import smile.data.formula.Formula;
-import smile.data.vector.BaseVector;
 import smile.data.vector.DoubleVector;
 import smile.data.vector.IntVector;
 import smile.math.MathEx;
@@ -34,7 +33,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.stream.LongStream;
 
 /**
  * Shared training pipeline, used by the {@code ModelTrainer} main class and
@@ -452,24 +450,27 @@ public class TrainingService {
      * {@link IntVector}: Smile's {@code ClassLabels.fit} calls
      * {@code toIntArray()} on the response vector, which {@code DoubleVector}
      * does NOT support (it throws UnsupportedOperationException), so a
-     * double-valued target column crashes training. This is the one place
-     * DataFrames are built from matrices — all callers go through here.
+     * double-valued target column crashes training. Smile 6.x removed the
+     * old {@code DataFrame.of(BaseVector...)} / {@code DoubleVector.of} /
+     * {@code IntVector.of} factories, so the frame is built from the feature
+     * matrix with {@code DataFrame.of(double[][], String...)} and the target
+     * is added as an {@code IntVector} with {@code add(...)}. This is the
+     * one place DataFrames are built from matrices — all callers go through
+     * here.
      */
     public static DataFrame buildDataFrame(double[][] data, String[] names) {
-        BaseVector[] vectors = new BaseVector[names.length];
-        for (int j = 0; j < names.length - 1; j++) {
-            double[] col = new double[data.length];
-            for (int i = 0; i < data.length; i++) {
-                col[i] = data[i][j];
-            }
-            vectors[j] = DoubleVector.of(names[j], col);
+        int p = names.length - 1;
+        String[] featureNames = Arrays.copyOf(names, p);
+        double[][] features = new double[data.length][p];
+        for (int i = 0; i < data.length; i++) {
+            System.arraycopy(data[i], 0, features[i], 0, p);
         }
         int[] y = new int[data.length];
         for (int i = 0; i < data.length; i++) {
-            y[i] = (int) Math.round(data[i][names.length - 1]);
+            y[i] = (int) Math.round(data[i][p]);
         }
-        vectors[names.length - 1] = IntVector.of(names[names.length - 1], y);
-        return DataFrame.of(vectors);
+        return DataFrame.of(features, featureNames)
+                .add(new IntVector(names[p], y));
     }
 
     /** Standardised DataFrame (selected features + target) for Smile. */
@@ -567,23 +568,23 @@ public class TrainingService {
         // The screening model IS Gradient Boosting — only its feature subset differs.
         String kind = SCREENING_MODEL.equals(config.model()) ? "Gradient Boosting" : config.model();
         return switch (kind) {
-            case "Random Forest" -> {
-                int ntrees = (int) p.getOrDefault("ntrees", 500);
-                Random seedRng = new Random(seed);
-                LongStream rfSeeds = LongStream.generate(() -> {
-                    long s;
-                    do {
-                        s = seedRng.nextLong();
-                    } while (s <= 1);
-                    return s;
-                }).limit(ntrees);
-                yield RandomForest.fit(formula, trainDf, ntrees,
-                        (int) p.getOrDefault("mtry", 0), SplitRule.GINI,
-                        (int) p.getOrDefault("maxDepth", 20),
-                        Math.max(10, trainDf.size() / 5),
-                        (int) p.getOrDefault("nodeSize", 5),
-                        (double) p.getOrDefault("subsample", 1.0), null, rfSeeds);
-            }
+            case "Random Forest" -> RandomForest.fit(formula, trainDf,
+                    // Smile 6.x fits take a nested Options record (the old
+                    // positional overloads are gone). The canonical
+                    // RandomForest.Options constructor has 10 components:
+                    // ntrees, mtry, rule, maxDepth, maxNodes, nodeSize,
+                    // subsample, classWeight, seeds, controller.
+                    // seeds/controller are null: Smile seeds the forest
+                    // from MathEx (setSeed above, before the fit).
+                    new RandomForest.Options(
+                            (int) p.getOrDefault("ntrees", 500),
+                            (int) p.getOrDefault("mtry", 0),
+                            SplitRule.GINI,
+                            (int) p.getOrDefault("maxDepth", 20),
+                            Math.max(10, trainDf.size() / 5),
+                            (int) p.getOrDefault("nodeSize", 5),
+                            (double) p.getOrDefault("subsample", 1.0),
+                            null, null, null));
             case "Bagging" -> {
                 int nTrees = (int) p.getOrDefault("ntrees", 200);
                 DecisionTree[] trees = new DecisionTree[nTrees];
@@ -595,29 +596,40 @@ public class TrainingService {
                         boot[i] = matrix[bagRng.nextInt(trainDf.size())];
                     }
                     DataFrame bootDf = buildDataFrame(boot, columnNames(trainDf));
-                    trees[t] = DecisionTree.fit(formula, bootDf, SplitRule.GINI,
-                            (int) p.getOrDefault("maxDepth", 20),
-                            Math.max(10, trainDf.size() / 5),
-                            (int) p.getOrDefault("nodeSize", 5));
+                    trees[t] = DecisionTree.fit(formula, bootDf,
+                            new DecisionTree.Options(SplitRule.GINI,
+                                    (int) p.getOrDefault("maxDepth", 20),
+                                    Math.max(10, trainDf.size() / 5),
+                                    (int) p.getOrDefault("nodeSize", 5)));
                 }
                 yield new BaggingClassifier(trees);
             }
             case "AdaBoost" -> AdaBoost.fit(formula, trainDf,
-                    (int) p.getOrDefault("ntrees", 300),
-                    (int) p.getOrDefault("maxDepth", 2),
-                    (int) p.getOrDefault("maxNodes", 4),
-                    (int) p.getOrDefault("nodeSize", 1));
+                    // AdaBoost.Options canonical constructor (6.3.0):
+                    // ntrees, maxDepth, maxNodes, nodeSize, test, controller.
+                    new AdaBoost.Options(
+                            (int) p.getOrDefault("ntrees", 300),
+                            (int) p.getOrDefault("maxDepth", 2),
+                            (int) p.getOrDefault("maxNodes", 4),
+                            (int) p.getOrDefault("nodeSize", 1),
+                            null, null));
             case "Gradient Boosting" -> GradientTreeBoost.fit(formula, trainDf,
-                    (int) p.getOrDefault("ntrees", 500),
-                    (int) p.getOrDefault("maxDepth", 3),
-                    (int) p.getOrDefault("maxNodes", 8),
-                    (int) p.getOrDefault("nodeSize", 5),
-                    (double) p.getOrDefault("shrinkage", 0.05),
-                    (double) p.getOrDefault("subsample", 0.7));
-            case "Decision Tree" -> DecisionTree.fit(formula, trainDf, SplitRule.GINI,
-                    (int) p.getOrDefault("maxDepth", 5),
-                    (int) p.getOrDefault("maxNodes", 31),
-                    (int) p.getOrDefault("nodeSize", 1));
+                    // GradientTreeBoost.Options canonical constructor (6.3.0):
+                    // ntrees, maxDepth, maxNodes, nodeSize, shrinkage,
+                    // subsample, test, controller.
+                    new GradientTreeBoost.Options(
+                            (int) p.getOrDefault("ntrees", 500),
+                            (int) p.getOrDefault("maxDepth", 3),
+                            (int) p.getOrDefault("maxNodes", 8),
+                            (int) p.getOrDefault("nodeSize", 5),
+                            (double) p.getOrDefault("shrinkage", 0.05),
+                            (double) p.getOrDefault("subsample", 0.7),
+                            null, null));
+            case "Decision Tree" -> DecisionTree.fit(formula, trainDf,
+                    new DecisionTree.Options(SplitRule.GINI,
+                            (int) p.getOrDefault("maxDepth", 5),
+                            (int) p.getOrDefault("maxNodes", 31),
+                            (int) p.getOrDefault("nodeSize", 1)));
             default -> throw new IllegalArgumentException("Unknown model: " + config.model());
         };
     }
@@ -662,14 +674,15 @@ public class TrainingService {
     /**
      * Fits one array-based baseline. Logistic Regression (L2, lambda),
      * linear SVM (LASVM, C) and KNN (k neighbours) all take double[][]
-     * input in Smile 3.1.1; their predict(x, posteriori) fills the
+     * input in Smile 6.3.0; their predict(x, posteriori) fills the
      * posterior from the fitted model (KNN: neighbour vote share).
      */
     public Classifier<double[]> fitBaseline(String kind, Map<String, Object> params, Matrix m, long seed) {
         MathEx.setSeed(seed);
         return switch (kind) {
             case "Logistic Regression" -> LogisticRegression.fit(m.x(), m.y(),
-                    (double) params.getOrDefault("lambda", 0.1), 1e-4, 100);
+                    new LogisticRegression.Options(
+                            (double) params.getOrDefault("lambda", 0.1), 1e-4, 100));
             case "SVM (Linear)" -> {
                 // Smile's linear SVM (LASVM) takes labels {-1, +1}, not {0, 1},
                 // and its predict(x, posteriori) throws (hard classifier).
@@ -679,7 +692,8 @@ public class TrainingService {
                 // decisions, not calibrated probabilities (see the model card).
                 int[] ypm = Arrays.stream(m.y()).map(y -> y == 1 ? 1 : -1).toArray();
                 yield new HardBinaryClassifier(
-                        SVM.fit(m.x(), ypm, (double) params.getOrDefault("C", 1.0), 1e-3));
+                        SVM.fit(m.x(), ypm, new SVM.Options(
+                                (double) params.getOrDefault("C", 1.0), 1e-3, 1)));
             }
             case "KNN" -> KNN.fit(m.x(), m.y(), (int) params.getOrDefault("k", 5));
             default -> throw new IllegalArgumentException("Unknown baseline: " + kind);
@@ -1091,7 +1105,8 @@ public class TrainingService {
     private static String[] columnNames(DataFrame df) {
         String[] names = new String[df.ncol()];
         for (int j = 0; j < df.ncol(); j++) {
-            names[j] = df.schema().field(j).name;
+            // StructField is a record in Smile 6.x — the name is an accessor, not a field.
+            names[j] = df.schema().field(j).name();
         }
         return names;
     }
@@ -1216,7 +1231,10 @@ public class TrainingService {
     private static List<Map<String, Object>> adaGrid() {
         return List.of(
                 Map.of("ntrees", 300, "maxDepth", 2, "maxNodes", 4, "nodeSize", 1),
-                Map.of("ntrees", 100, "maxDepth", 1, "maxNodes", 2, "nodeSize", 1),
+                // NOTE (Smile 6.x): AdaBoost.Options rejects maxDepth < 2, so the
+                // old maxDepth=1 (stump) candidate is now maxDepth=2 — the
+                // shallowest weak learner Smile 6 allows.
+                Map.of("ntrees", 100, "maxDepth", 2, "maxNodes", 2, "nodeSize", 1),
                 Map.of("ntrees", 500, "maxDepth", 2, "maxNodes", 6, "nodeSize", 1),
                 Map.of("ntrees", 300, "maxDepth", 3, "maxNodes", 8, "nodeSize", 1),
                 Map.of("ntrees", 200, "maxDepth", 2, "maxNodes", 4, "nodeSize", 1));

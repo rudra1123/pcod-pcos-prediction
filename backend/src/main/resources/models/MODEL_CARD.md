@@ -9,7 +9,7 @@
 | Tuning | 5-fold stratified cross-validation on the train split only (seed 42): hyperparameter grids, feature subsets from Random Forest importance rankings re-computed inside each CV fold (ranked on that fold's training part only), clipping on/off, minority oversampling on/off. Preprocessing re-fitted inside every fold. |
 | Deployed model | Soft Voting Ensemble — chosen by best train CV, not by test accuracy. |
 | Verified history rows used | 0 (only doctor-verified outcomes are ever used for training) |
-| Library / stack | Java 17, Spring Boot 3.2.5, Smile 3.1.1 (Java ML) |
+| Library / stack | Java 25 (LTS), Spring Boot 4.1.2, Smile 6.3.0 (Java ML) — migrated from Java 17 / Spring Boot 3.2.5 / Smile 3.1.1 on 2026-11-26. The metrics table below is still the frozen run-8 result (Smile 3.1.1); it will be replaced by the re-trained Smile 6.3.0 run once the trainer has been re-run on the new stack. |
 
 ## Measured test results (held-out test set, n = 108)
 

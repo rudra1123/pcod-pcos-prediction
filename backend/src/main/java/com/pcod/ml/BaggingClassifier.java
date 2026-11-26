@@ -8,7 +8,7 @@ import java.io.Serializable;
 /**
  * Bagging (Bootstrap Aggregating) classifier.
  *
- * <p>Smile 3.1.1 ships no Bagging classifier class, so bagging is implemented
+ * <p>Smile 6.3.0 ships no Bagging classifier class, so bagging is implemented
  * here directly from its textbook definition, on top of Smile's
  * {@link DecisionTree}: {@code nTrees} decision trees are each trained on a
  * bootstrap sample (n rows drawn with replacement from the training set) and

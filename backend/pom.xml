@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.5</version>
+        <version>4.1.2</version>
         <relativePath/>
     </parent>
 
@@ -16,18 +16,18 @@
     <version>1.0.0</version>
     <name>PCOD Prediction Backend</name>
     <description>Final-year project: Cognitive Analytics in Healthcare — PCOD/PCOS prediction.
-        Java 17 + Spring Boot 3.2 REST API over four Smile ensemble models trained on the
+        Java 25 + Spring Boot 4.1 REST API over four Smile ensemble models trained on the
         Kaggle PCOS dataset (541 patients, 41 input features).</description>
 
     <properties>
-        <java.version>17</java.version>
-        <smile.version>3.1.1</smile.version>
+        <java.version>25</java.version>
+        <smile.version>6.3.0</smile.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
 
         <!-- Prediction history: Spring Data JPA + MySQL. No separate DB server
@@ -44,11 +44,12 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- OpenAPI / Swagger UI for the REST API (see README). -->
+        <!-- OpenAPI / Swagger UI for the REST API (see README).
+             springdoc 3.x is the line for Spring Boot 4 (2.x was Boot 3). -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.3.0</version>
+            <version>3.2.0</version>
         </dependency>
 
         <!-- H2 is for TESTS ONLY (JPA repository tests): the runtime database
@@ -59,10 +60,17 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Smile 3.1.1 (verified on Maven Central 2026-11-25).
-             NOTE: there is NO separate "smile-data" 3.1.1 artifact — in Smile 3.x the
-             DataFrame / vector classes live in smile-base, pulled in transitively by
-             smile-core. Only smile-core is declared here. -->
+        <!-- Smile 6.3.0 (verified on Maven Central 2026-11-26). Smile 5+
+             requires Java 25. The tree/ensemble fits use Smile 6.x nested
+             Options records (RandomForest.Options, GradientTreeBoost.Options,
+             AdaBoost.Options, DecisionTree.Options, LogisticRegression.Options,
+             SVM.Options) — the old positional fit overloads were removed in
+             5.x. SplitRule moved from smile.base.cart to smile.model.cart.
+             KNN.fit(x, y, k), DataFrame/Formula/MathEx and the soft-predict
+             contract (predict(x, posteriori)) are unchanged. NOTE: there is
+             NO separate "smile-data" artifact — the DataFrame / vector
+             classes live in smile-base, pulled in transitively by smile-core.
+             Only smile-core is declared here. -->
         <dependency>
             <groupId>com.github.haifengl</groupId>
             <artifactId>smile-core</artifactId>
@@ -76,9 +84,16 @@
             </exclusions>
         </dependency>
 
+        <!-- Test starters (Boot 4: one per technology under test; each brings
+             spring-boot-starter-test transitively). -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

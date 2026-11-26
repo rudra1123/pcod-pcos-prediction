@@ -1,9 +1,9 @@
 # PCOD Prediction Backend
 
-Java 17 + Spring Boot 3.2.5 REST API for PCOD/PCOS prediction, built for the
+Java 25 (LTS) + Spring Boot 4.1.2 REST API for PCOD/PCOS prediction, built for the
 final-year project **Cognitive Analytics in Healthcare**. It serves six
 models trained in Java with the Smile machine-learning library
-(`com.github.haifengl:smile-core`, version **3.1.1**, verified on Maven
+(`com.github.haifengl:smile-core`, version **6.3.0**, verified on Maven
 Central): Random Forest, Bagging, AdaBoost, Gradient Boosting, a soft-voting
 ensemble of those four, and a screening Gradient Boosting model trained on
 non-invasive features only. Five baselines (majority class, Logistic
@@ -169,7 +169,7 @@ verified 541 rows only, and no larger patient count is claimed anywhere.
   optimistic (the test split was never involved in either version); the
   ranking is now re-computed per fold. The all-41 subset still wins for
   every model, so no deployed number changed.
-- **Bagging:** Smile 3.1.1 ships no Bagging classifier, so it is implemented
+- **Bagging:** Smile 6.3.0 ships no Bagging classifier, so it is implemented
   here from its definition (`BaggingClassifier.java`): bootstrap-sampled
   Smile decision trees with majority vote; the vote fraction is the
   probability.
@@ -370,9 +370,9 @@ export it without consent.
 
 ## How to run
 
-Prerequisites: **Java 17**, **Maven 3.9+**, **MySQL 8.x** (running),
+Prerequisites: **Java 25 (Temurin 25 LTS)**, **Maven 3.9+**, **MySQL 8.x** (running),
 **Node.js/npm** for the frontend. IntelliJ IDEA: open this `backend/`
-folder as a Maven project, JDK 17, run `PcodApplication`.
+folder as a Maven project, JDK 25, run `PcodApplication`.
 
 ```bash
 cd pcod-working-project/backend
@@ -631,9 +631,9 @@ pcod-working-project/
   docker-compose.yml                     MySQL + backend + frontend (one-command start)
   backend/
     Dockerfile                           Multi-stage Maven build + JRE run
-    pom.xml                              Spring Boot 3.2.5, Java 17, smile-core 3.1.1,
+    pom.xml                              Spring Boot 4.1.2, Java 25, smile-core 6.3.0,
                                          spring-boot-starter-data-jpa, mysql-connector-j,
-                                         springdoc-openapi 2.3.0, H2 (test scope only)
+                                         springdoc-openapi 3.2.0, H2 (test scope only)
     src/main/java/com/pcod/
       PcodApplication.java               Spring Boot entry point + CORS (5173, 3000)
       controller/PcodController.java     /api/health, /models, /metrics, /features,
@@ -684,7 +684,7 @@ ways:
    dev-only helper scripts used during development in this VM — those
    scripts are not shipped with the project. The build runs here with `mvn -o` (offline)
    against the already-populated local Maven repository. None of this
-   affects the project: the `pom.xml` is a standard Spring Boot 3.2.5
+   affects the project: the `pom.xml` is a standard Spring Boot 4.1.2
    project and IntelliJ will resolve it normally.
 2. **Java cannot open TCP connections here at all — including to
    localhost MySQL.** Proven directly: a Java socket to 127.0.0.1:3306
@@ -698,13 +698,23 @@ ways:
    the native client instead. On the user's laptop none of this applies —
    Java reaches MySQL normally.
 
-Two Smile API facts found while building (verified against the Smile 3.1.1
-sources on Maven Central): there is no separate `smile-data` 3.1.1
+Two Smile API facts found while building (verified against the Smile 6.3.0
+sources on Maven Central): there is no separate `smile-data` 6.3.0
 artifact — the DataFrame classes live in `smile-base`, pulled in
 transitively by `smile-core` — and Smile's `DoubleVector.toIntArray()` is
 unsupported, so the target column is built as an `IntVector`
 (`TrainingService.buildDataFrame`). Smile's linear SVM takes labels −1/+1
 only and its soft-predict throws; see Method for how that is handled.
+Smile 6.x also removed the old positional `fit(...)` overloads: tree and
+ensemble fits now take nested `Options` records (`RandomForest.Options`,
+`GradientTreeBoost.Options`, `AdaBoost.Options`, `DecisionTree.Options`,
+`LogisticRegression.Options`, `SVM.Options`), `SplitRule` moved from
+`smile.base.cart` to `smile.model.cart`, `DataFrame.of(BaseVector...)` /
+`DoubleVector.of` / `IntVector.of` are gone (build from
+`DataFrame.of(double[][], String...).add(new IntVector(...))`), and
+`StructField` is a record (use `.name()`). AdaBoost's `Options` rejects
+`maxDepth < 2`, so the old maxDepth=1 stump candidate in the AdaBoost grid
+is now maxDepth=2.
 
 ## Limitations and future work
 
@@ -756,12 +766,12 @@ only and its soft-predict throws; see Method for how that is handled.
   (file `PCOS_data_without_infertility.xlsx`, sheet `Full_new`). Local
   verification and provenance: `../data/SCHEMA.md`. Larger-dataset search:
   `../data/LARGE_DATASET.md`.
-- Smile (Statistical Machine Intelligence and Learning Engine) 3.1.1:
+- Smile (Statistical Machine Intelligence and Learning Engine) 6.3.0:
   https://github.com/haifengl/smile (Maven Central
-  `com.github.haifengl:smile-core:3.1.1`); API details verified from the
-  published `smile-core` / `smile-base` 3.1.1 sources jars.
-- Spring Boot 3.2.5: https://spring.io/projects/spring-boot
-- springdoc-openapi 2.3.0 (Swagger/OpenAPI): https://springdoc.org
+  `com.github.haifengl:smile-core:6.3.0`); API details verified from the
+  published `smile-core` / `smile-base` 6.3.0 sources jars.
+- Spring Boot 4.1.2: https://spring.io/projects/spring-boot
+- springdoc-openapi 3.2.0 (Swagger/OpenAPI): https://springdoc.org
 - MySQL 8.0: https://dev.mysql.com/doc/refman/8.0/en/
 - H2 database (test scope only — the runtime database is MySQL):
   https://www.h2database.com

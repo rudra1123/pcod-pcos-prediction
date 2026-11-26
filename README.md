@@ -8,9 +8,9 @@ from patient clinical attributes using ensemble machine learning.
 - **Guide:** Mrs. Rashi Chaudhary
 - **College:** Galgotias College of Engineering and Technology, Greater Noida —
   Dr. APJ Abdul Kalam Technical University, Lucknow
-- **Stack:** Frontend HTML, CSS, JavaScript, React (Vite) · Backend Java 17 +
-  Spring Boot 3.2.5 · Database MySQL 8.x · IDE IntelliJ IDEA · ML library
-  Smile 3.1.1 (Java ML library)
+- **Stack:** Frontend HTML, CSS, JavaScript, React (Vite) · Backend Java 25 (LTS) +
+  Spring Boot 4.1.2 · Database MySQL 8.x · IDE IntelliJ IDEA · ML library
+  Smile 6.3.0 (Java ML library)
 
 > Educational demo — a screening aid, not a medical diagnosis. Consult a doctor.
 
@@ -130,7 +130,7 @@ survive container recreation.
 
 ### Option B — IntelliJ IDEA + MySQL (recommended for the viva demo)
 
-1. Install Java 17, Maven, Node.js, and MySQL Server 8.x; start MySQL.
+1. Install Java 25 (Temurin 25 LTS), Maven, Node.js, and MySQL Server 8.x; start MySQL.
 2. Set the database credentials (never hard-code a real password):
    ```bash
    export MYSQL_URL='jdbc:mysql://localhost:3306/pcod_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC'
@@ -140,7 +140,7 @@ survive container recreation.
    ```
    The `pcod_db` database and the `prediction_records` table are created
    automatically (`schema.sql`, `ddl-auto=none`).
-3. Backend — open `backend/` in IntelliJ IDEA as a Maven project (JDK 17)
+3. Backend — open `backend/` in IntelliJ IDEA as a Maven project (JDK 25)
    and run `PcodApplication`, or from a terminal:
    ```bash
    cd backend
@@ -213,9 +213,9 @@ see `backend/README.md`.
 
 - Dataset: Kaggle, Prasoon Kottarathil, "Polycystic Ovary Syndrome (PCOS)"
   (see `data/SCHEMA.md`).
-- Java ML: Smile 3.1.1 (https://haifengl.github.io/smile/) — Random Forest,
+- Java ML: Smile 6.3.0 (https://haifengl.github.io/smile/) — Random Forest,
   Gradient Boosting, AdaBoost, Bagging, Logistic Regression, SVM, KNN.
-- Spring Boot 3.2 / Spring Data JPA / springdoc-openapi, React 18 + Vite,
+- Spring Boot 4.1 / Spring Data JPA / springdoc-openapi 3.2.0, React 18 + Vite,
   MySQL 8 — official documentation.
 
 ## Limitations (honest)
