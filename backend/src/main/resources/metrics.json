@@ -1,4 +1,33 @@
 {
+  "ablation" : [ {
+    "gbmAccuracy" : 0.8796296296296297,
+    "gbmRecall" : 0.8,
+    "nFeatures" : 41,
+    "variant" : "full (41 features)",
+    "votingAccuracy" : 0.8888888888888888,
+    "votingRecall" : 0.7428571428571429
+  }, {
+    "gbmAccuracy" : 0.7962962962962963,
+    "gbmRecall" : 0.5714285714285714,
+    "nFeatures" : 36,
+    "variant" : "without ultrasound (36 features)",
+    "votingAccuracy" : 0.7777777777777778,
+    "votingRecall" : 0.5142857142857142
+  }, {
+    "gbmAccuracy" : 0.8981481481481481,
+    "gbmRecall" : 0.7714285714285715,
+    "nFeatures" : 35,
+    "variant" : "without hormones (35 features)",
+    "votingAccuracy" : 0.8981481481481481,
+    "votingRecall" : 0.7714285714285715
+  }, {
+    "gbmAccuracy" : 0.8055555555555556,
+    "gbmRecall" : 0.6285714285714286,
+    "nFeatures" : 23,
+    "variant" : "non-invasive only (23 features)",
+    "votingAccuracy" : 0.8055555555555556,
+    "votingRecall" : 0.5714285714285714
+  } ],
   "baselines" : [ {
     "name" : "Majority Class",
     "accuracy" : 0.6759259259259259,
@@ -43,7 +72,7 @@
     "f1" : 0.75,
     "accuracyCiHigh" : 0.9166666666666666,
     "accuracyCiLow" : 0.7777777777777778,
-    "brierScore" : 0.11508298380857652,
+    "brierScore" : 0.11545700547091615,
     "clipApplied" : true,
     "confusionMatrix" : {
       "tp" : 24,
@@ -408,9 +437,9 @@
       "fn" : 14,
       "tn" : 68
     },
-    "cvAccuracy" : 0.8475750577367206,
+    "cvAccuracy" : 0.8498845265588915,
     "featureSubset" : [ "age", "weightKg", "heightCm", "bmi", "bloodGroup", "pulseRate", "rr", "hb", "cycle", "cycleLength", "marriageYears", "pregnant", "abortions", "betaHcg1", "betaHcg2", "fsh", "lh", "fshLh", "hip", "waist", "waistHipRatio", "tsh", "amh", "prl", "vitD3", "prg", "rbs", "weightGain", "hairGrowth", "skinDarkening", "hairLoss", "pimples", "fastFood", "regularExercise", "bpSystolic", "bpDiastolic", "follicleL", "follicleR", "avgFollicleSizeL", "avgFollicleSizeR", "endometrium" ],
-    "hyperparameters" : "Decision Tree {maxDepth=5, nodeSize=1, maxNodes=31}",
+    "hyperparameters" : "Decision Tree {maxNodes=31, nodeSize=1, maxDepth=5}",
     "mode" : "full",
     "nFeatures" : 41,
     "oversample" : false,
@@ -451,33 +480,33 @@
     "threshold" : 0.5
   }, {
     "name" : "SVM (Linear)",
-    "accuracy" : 0.8796296296296297,
-    "precision" : 0.8055555555555556,
+    "accuracy" : 0.8888888888888888,
+    "precision" : 0.8285714285714286,
     "recall" : 0.8285714285714286,
-    "f1" : 0.8169014084507044,
-    "accuracyCiHigh" : 0.9351851851851852,
+    "f1" : 0.8285714285714286,
+    "accuracyCiHigh" : 0.9444444444444444,
     "accuracyCiLow" : 0.8240740740740741,
-    "brierScore" : 0.12037037037037036,
+    "brierScore" : 0.1111111111111111,
     "clipApplied" : true,
     "confusionMatrix" : {
       "tp" : 29,
-      "fp" : 7,
+      "fp" : 6,
       "fn" : 6,
-      "tn" : 66
+      "tn" : 67
     },
-    "cvAccuracy" : 0.8937644341801386,
+    "cvAccuracy" : 0.8960739030023095,
     "featureSubset" : [ "age", "weightKg", "heightCm", "bmi", "bloodGroup", "pulseRate", "rr", "hb", "cycle", "cycleLength", "marriageYears", "pregnant", "abortions", "betaHcg1", "betaHcg2", "fsh", "lh", "fshLh", "hip", "waist", "waistHipRatio", "tsh", "amh", "prl", "vitD3", "prg", "rbs", "weightGain", "hairGrowth", "skinDarkening", "hairLoss", "pimples", "fastFood", "regularExercise", "bpSystolic", "bpDiastolic", "follicleL", "follicleR", "avgFollicleSizeL", "avgFollicleSizeR", "endometrium" ],
     "hyperparameters" : "SVM (Linear) {C=0.1}",
     "mode" : "full",
     "nFeatures" : 41,
     "oversample" : false,
-    "prAuc" : 0.723015873015873,
-    "rocAuc" : 0.8663405088062622,
+    "prAuc" : 0.7420861678004536,
+    "rocAuc" : 0.8731898238747554,
     "rocCurve" : [ {
       "fpr" : 0.0,
       "tpr" : 0.0
     }, {
-      "fpr" : 0.0958904109589041,
+      "fpr" : 0.0821917808219178,
       "tpr" : 0.8285714285714286
     }, {
       "fpr" : 1.0,
@@ -536,17 +565,142 @@
   } ],
   "bestModel" : "Soft Voting Ensemble",
   "bestModelTestAccuracy" : 0.8888888888888888,
+  "calibration" : {
+    "model" : "Soft Voting Ensemble",
+    "oofBins" : [ {
+      "binHigh" : 0.1,
+      "binLow" : 0.0,
+      "count" : 22,
+      "meanPredicted" : 0.09414395285254722,
+      "observedFrequency" : 0.0
+    }, {
+      "binHigh" : 0.2,
+      "binLow" : 0.1,
+      "count" : 167,
+      "meanPredicted" : 0.1438448559533422,
+      "observedFrequency" : 0.017964071856287425
+    }, {
+      "binHigh" : 0.3,
+      "binLow" : 0.2,
+      "count" : 63,
+      "meanPredicted" : 0.2427022970105456,
+      "observedFrequency" : 0.14285714285714285
+    }, {
+      "binHigh" : 0.4,
+      "binLow" : 0.3,
+      "count" : 31,
+      "meanPredicted" : 0.34820505671624763,
+      "observedFrequency" : 0.16129032258064516
+    }, {
+      "binHigh" : 0.5,
+      "binLow" : 0.4,
+      "count" : 20,
+      "meanPredicted" : 0.4538697377949471,
+      "observedFrequency" : 0.35
+    }, {
+      "binHigh" : 0.6,
+      "binLow" : 0.5,
+      "count" : 18,
+      "meanPredicted" : 0.5404475728143493,
+      "observedFrequency" : 0.5555555555555556
+    }, {
+      "binHigh" : 0.7,
+      "binLow" : 0.6,
+      "count" : 20,
+      "meanPredicted" : 0.637773225891403,
+      "observedFrequency" : 0.9
+    }, {
+      "binHigh" : 0.8,
+      "binLow" : 0.7,
+      "count" : 54,
+      "meanPredicted" : 0.7575587176253005,
+      "observedFrequency" : 0.9814814814814815
+    }, {
+      "binHigh" : 0.9,
+      "binLow" : 0.8,
+      "count" : 38,
+      "meanPredicted" : 0.8325066242634758,
+      "observedFrequency" : 0.9736842105263158
+    }, {
+      "binHigh" : 1.0,
+      "binLow" : 0.9,
+      "count" : 0,
+      "meanPredicted" : 0.0,
+      "observedFrequency" : 0.0
+    } ],
+    "testBins" : [ {
+      "binHigh" : 0.1,
+      "binLow" : 0.0,
+      "count" : 7,
+      "meanPredicted" : 0.09758601154632118,
+      "observedFrequency" : 0.0
+    }, {
+      "binHigh" : 0.2,
+      "binLow" : 0.1,
+      "count" : 40,
+      "meanPredicted" : 0.13908145407635145,
+      "observedFrequency" : 0.075
+    }, {
+      "binHigh" : 0.3,
+      "binLow" : 0.2,
+      "count" : 21,
+      "meanPredicted" : 0.2405490897165951,
+      "observedFrequency" : 0.09523809523809523
+    }, {
+      "binHigh" : 0.4,
+      "binLow" : 0.3,
+      "count" : 2,
+      "meanPredicted" : 0.38472674250489725,
+      "observedFrequency" : 0.5
+    }, {
+      "binHigh" : 0.5,
+      "binLow" : 0.4,
+      "count" : 9,
+      "meanPredicted" : 0.44062931316425474,
+      "observedFrequency" : 0.3333333333333333
+    }, {
+      "binHigh" : 0.6,
+      "binLow" : 0.5,
+      "count" : 3,
+      "meanPredicted" : 0.5402089863351437,
+      "observedFrequency" : 0.6666666666666666
+    }, {
+      "binHigh" : 0.7,
+      "binLow" : 0.6,
+      "count" : 5,
+      "meanPredicted" : 0.6369041447555125,
+      "observedFrequency" : 0.8
+    }, {
+      "binHigh" : 0.8,
+      "binLow" : 0.7,
+      "count" : 11,
+      "meanPredicted" : 0.7461592727823129,
+      "observedFrequency" : 1.0
+    }, {
+      "binHigh" : 0.9,
+      "binLow" : 0.8,
+      "count" : 10,
+      "meanPredicted" : 0.829258200825538,
+      "observedFrequency" : 0.9
+    }, {
+      "binHigh" : 1.0,
+      "binLow" : 0.9,
+      "count" : 0,
+      "meanPredicted" : 0.0,
+      "observedFrequency" : 0.0
+    } ]
+  },
   "cvFolds" : 5,
   "cvLog" : {
-    "Random Forest" : [ "Random Forest [maxDepth=20, mtry=0, nodeSize=5, ntrees=500, subsample=1.0, features=41, clip=true, oversample=false] -> CV accuracy 0.8961", "Random Forest [maxDepth=20, mtry=6, nodeSize=1, ntrees=500, subsample=1.0, features=41, clip=true, oversample=false] -> CV accuracy 0.8984", "Random Forest [maxDepth=10, mtry=0, nodeSize=5, ntrees=500, subsample=1.0, features=41, clip=true, oversample=false] -> CV accuracy 0.8915", "Random Forest [maxDepth=20, mtry=0, nodeSize=1, ntrees=300, subsample=1.0, features=41, clip=true, oversample=false] -> CV accuracy 0.9007", "Random Forest [maxDepth=20, mtry=0, nodeSize=5, ntrees=800, subsample=1.0, features=41, clip=true, oversample=false] -> CV accuracy 0.8984", "Random Forest [maxDepth=20, mtry=0, nodeSize=2, ntrees=500, subsample=0.8, features=41, clip=true, oversample=false] -> CV accuracy 0.9099", "Random Forest [maxDepth=20, mtry=0, nodeSize=2, ntrees=500, subsample=0.8, features=25, clip=true, oversample=false] (top-25 per-fold ranking, clip=true) -> CV accuracy 0.9030", "Random Forest [maxDepth=20, mtry=0, nodeSize=2, ntrees=500, subsample=0.8, features=25, clip=false, oversample=false] (top-25 per-fold ranking, clip=false) -> CV accuracy 0.9030", "Random Forest [maxDepth=20, mtry=0, nodeSize=2, ntrees=500, subsample=0.8, features=20, clip=true, oversample=false] (top-20 per-fold ranking, clip=true) -> CV accuracy 0.8938", "Random Forest [maxDepth=20, mtry=0, nodeSize=2, ntrees=500, subsample=0.8, features=20, clip=false, oversample=false] (top-20 per-fold ranking, clip=false) -> CV accuracy 0.8868", "Random Forest [maxDepth=20, mtry=0, nodeSize=2, ntrees=500, subsample=0.8, features=15, clip=true, oversample=false] (top-15 per-fold ranking, clip=true) -> CV accuracy 0.8868", "Random Forest [maxDepth=20, mtry=0, nodeSize=2, ntrees=500, subsample=0.8, features=15, clip=false, oversample=false] (top-15 per-fold ranking, clip=false) -> CV accuracy 0.8915", "Random Forest [maxDepth=20, mtry=0, nodeSize=2, ntrees=500, subsample=0.8, features=10, clip=true, oversample=false] (top-10 per-fold ranking, clip=true) -> CV accuracy 0.8938", "Random Forest [maxDepth=20, mtry=0, nodeSize=2, ntrees=500, subsample=0.8, features=10, clip=false, oversample=false] (top-10 per-fold ranking, clip=false) -> CV accuracy 0.9007", "Random Forest [maxDepth=20, mtry=0, nodeSize=2, ntrees=500, subsample=0.8, features=41, clip=false, oversample=false] -> CV accuracy 0.9007", "Random Forest [maxDepth=20, mtry=0, nodeSize=2, ntrees=500, subsample=0.8, features=41, clip=true, oversample=true] -> CV accuracy 0.9053" ],
-    "Bagging" : [ "Bagging [maxDepth=20, nodeSize=5, ntrees=200, features=41, clip=true, oversample=false] -> CV accuracy 0.8868", "Bagging [maxDepth=10, nodeSize=5, ntrees=200, features=41, clip=true, oversample=false] -> CV accuracy 0.8868", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=41, clip=true, oversample=false] -> CV accuracy 0.8915", "Bagging [maxDepth=20, nodeSize=5, ntrees=300, features=41, clip=true, oversample=false] -> CV accuracy 0.8891", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=25, clip=true, oversample=false] (top-25 per-fold ranking, clip=true) -> CV accuracy 0.8845", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=25, clip=false, oversample=false] (top-25 per-fold ranking, clip=false) -> CV accuracy 0.8868", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=20, clip=true, oversample=false] (top-20 per-fold ranking, clip=true) -> CV accuracy 0.8799", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=20, clip=false, oversample=false] (top-20 per-fold ranking, clip=false) -> CV accuracy 0.8707", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=15, clip=true, oversample=false] (top-15 per-fold ranking, clip=true) -> CV accuracy 0.8730", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=15, clip=false, oversample=false] (top-15 per-fold ranking, clip=false) -> CV accuracy 0.8684", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=10, clip=true, oversample=false] (top-10 per-fold ranking, clip=true) -> CV accuracy 0.8591", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=10, clip=false, oversample=false] (top-10 per-fold ranking, clip=false) -> CV accuracy 0.8568", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=41, clip=false, oversample=false] -> CV accuracy 0.8891", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=41, clip=true, oversample=true] -> CV accuracy 0.8614" ],
-    "AdaBoost" : [ "AdaBoost [maxDepth=2, maxNodes=4, nodeSize=1, ntrees=300, features=41, clip=true, oversample=false] -> CV accuracy 0.8822", "AdaBoost [maxDepth=2, maxNodes=2, nodeSize=1, ntrees=100, features=41, clip=true, oversample=false] -> CV accuracy 0.8891", "AdaBoost [maxDepth=2, maxNodes=6, nodeSize=1, ntrees=500, features=41, clip=true, oversample=false] -> CV accuracy 0.8614", "AdaBoost [maxDepth=3, maxNodes=8, nodeSize=1, ntrees=300, features=41, clip=true, oversample=false] -> CV accuracy 0.8891", "AdaBoost [maxDepth=2, maxNodes=4, nodeSize=1, ntrees=200, features=41, clip=true, oversample=false] -> CV accuracy 0.8845", "AdaBoost [maxDepth=2, maxNodes=2, nodeSize=1, ntrees=100, features=25, clip=true, oversample=false] (top-25 per-fold ranking, clip=true) -> CV accuracy 0.8684", "AdaBoost [maxDepth=2, maxNodes=2, nodeSize=1, ntrees=100, features=25, clip=false, oversample=false] (top-25 per-fold ranking, clip=false) -> CV accuracy 0.8637", "AdaBoost [maxDepth=2, maxNodes=2, nodeSize=1, ntrees=100, features=20, clip=true, oversample=false] (top-20 per-fold ranking, clip=true) -> CV accuracy 0.8545", "AdaBoost [maxDepth=2, maxNodes=2, nodeSize=1, ntrees=100, features=20, clip=false, oversample=false] (top-20 per-fold ranking, clip=false) -> CV accuracy 0.8591", "AdaBoost [maxDepth=2, maxNodes=2, nodeSize=1, ntrees=100, features=15, clip=true, oversample=false] (top-15 per-fold ranking, clip=true) -> CV accuracy 0.8614", "AdaBoost [maxDepth=2, maxNodes=2, nodeSize=1, ntrees=100, features=15, clip=false, oversample=false] (top-15 per-fold ranking, clip=false) -> CV accuracy 0.8591", "AdaBoost [maxDepth=2, maxNodes=2, nodeSize=1, ntrees=100, features=10, clip=true, oversample=false] (top-10 per-fold ranking, clip=true) -> CV accuracy 0.8614", "AdaBoost [maxDepth=2, maxNodes=2, nodeSize=1, ntrees=100, features=10, clip=false, oversample=false] (top-10 per-fold ranking, clip=false) -> CV accuracy 0.8614", "AdaBoost [maxDepth=2, maxNodes=2, nodeSize=1, ntrees=100, features=41, clip=false, oversample=false] -> CV accuracy 0.8915", "AdaBoost [maxDepth=2, maxNodes=2, nodeSize=1, ntrees=100, features=41, clip=false, oversample=true] -> CV accuracy 0.8707" ],
-    "Gradient Boosting" : [ "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=41, clip=true, oversample=false] -> CV accuracy 0.9122", "Gradient Boosting [maxDepth=2, maxNodes=6, nodeSize=5, ntrees=300, shrinkage=0.1, subsample=0.8, features=41, clip=true, oversample=false] -> CV accuracy 0.8961", "Gradient Boosting [maxDepth=5, maxNodes=31, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=41, clip=true, oversample=false] -> CV accuracy 0.9122", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=200, shrinkage=0.1, subsample=1.0, features=41, clip=true, oversample=false] -> CV accuracy 0.9053", "Gradient Boosting [maxDepth=2, maxNodes=6, nodeSize=5, ntrees=800, shrinkage=0.03, subsample=0.7, features=41, clip=true, oversample=false] -> CV accuracy 0.9053", "Gradient Boosting [maxDepth=3, maxNodes=15, nodeSize=3, ntrees=500, shrinkage=0.05, subsample=0.7, features=41, clip=true, oversample=false] -> CV accuracy 0.9053", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=25, clip=true, oversample=false] (top-25 per-fold ranking, clip=true) -> CV accuracy 0.9053", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=25, clip=false, oversample=false] (top-25 per-fold ranking, clip=false) -> CV accuracy 0.8961", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=20, clip=true, oversample=false] (top-20 per-fold ranking, clip=true) -> CV accuracy 0.8891", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=20, clip=false, oversample=false] (top-20 per-fold ranking, clip=false) -> CV accuracy 0.8868", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=15, clip=true, oversample=false] (top-15 per-fold ranking, clip=true) -> CV accuracy 0.8707", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=15, clip=false, oversample=false] (top-15 per-fold ranking, clip=false) -> CV accuracy 0.8730", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=10, clip=true, oversample=false] (top-10 per-fold ranking, clip=true) -> CV accuracy 0.8730", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=10, clip=false, oversample=false] (top-10 per-fold ranking, clip=false) -> CV accuracy 0.8753", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=41, clip=false, oversample=false] -> CV accuracy 0.9053", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=41, clip=true, oversample=true] -> CV accuracy 0.9007" ],
+    "Random Forest" : [ "Random Forest [maxDepth=20, mtry=0, nodeSize=5, ntrees=500, subsample=1.0, features=41, clip=true, oversample=false] -> CV accuracy 0.8984", "Random Forest [maxDepth=20, mtry=6, nodeSize=1, ntrees=500, subsample=1.0, features=41, clip=true, oversample=false] -> CV accuracy 0.9030", "Random Forest [maxDepth=10, mtry=0, nodeSize=5, ntrees=500, subsample=1.0, features=41, clip=true, oversample=false] -> CV accuracy 0.9030", "Random Forest [maxDepth=20, mtry=0, nodeSize=1, ntrees=300, subsample=1.0, features=41, clip=true, oversample=false] -> CV accuracy 0.9122", "Random Forest [maxDepth=20, mtry=0, nodeSize=5, ntrees=800, subsample=1.0, features=41, clip=true, oversample=false] -> CV accuracy 0.9007", "Random Forest [maxDepth=20, mtry=0, nodeSize=2, ntrees=500, subsample=0.8, features=41, clip=true, oversample=false] -> CV accuracy 0.9030", "Random Forest [maxDepth=20, mtry=0, nodeSize=1, ntrees=300, subsample=1.0, features=25, clip=true, oversample=false] (top-25 per-fold ranking, clip=true) -> CV accuracy 0.8984", "Random Forest [maxDepth=20, mtry=0, nodeSize=1, ntrees=300, subsample=1.0, features=25, clip=false, oversample=false] (top-25 per-fold ranking, clip=false) -> CV accuracy 0.9030", "Random Forest [maxDepth=20, mtry=0, nodeSize=1, ntrees=300, subsample=1.0, features=20, clip=true, oversample=false] (top-20 per-fold ranking, clip=true) -> CV accuracy 0.8891", "Random Forest [maxDepth=20, mtry=0, nodeSize=1, ntrees=300, subsample=1.0, features=20, clip=false, oversample=false] (top-20 per-fold ranking, clip=false) -> CV accuracy 0.8868", "Random Forest [maxDepth=20, mtry=0, nodeSize=1, ntrees=300, subsample=1.0, features=15, clip=true, oversample=false] (top-15 per-fold ranking, clip=true) -> CV accuracy 0.8753", "Random Forest [maxDepth=20, mtry=0, nodeSize=1, ntrees=300, subsample=1.0, features=15, clip=false, oversample=false] (top-15 per-fold ranking, clip=false) -> CV accuracy 0.8799", "Random Forest [maxDepth=20, mtry=0, nodeSize=1, ntrees=300, subsample=1.0, features=10, clip=true, oversample=false] (top-10 per-fold ranking, clip=true) -> CV accuracy 0.8938", "Random Forest [maxDepth=20, mtry=0, nodeSize=1, ntrees=300, subsample=1.0, features=10, clip=false, oversample=false] (top-10 per-fold ranking, clip=false) -> CV accuracy 0.8891", "Random Forest [maxDepth=20, mtry=0, nodeSize=1, ntrees=300, subsample=1.0, features=41, clip=false, oversample=false] -> CV accuracy 0.9007", "Random Forest [maxDepth=20, mtry=0, nodeSize=1, ntrees=300, subsample=1.0, features=41, clip=true, oversample=true] -> CV accuracy 0.9030" ],
+    "Bagging" : [ "Bagging [maxDepth=20, nodeSize=5, ntrees=200, features=41, clip=true, oversample=false] -> CV accuracy 0.8868", "Bagging [maxDepth=10, nodeSize=5, ntrees=200, features=41, clip=true, oversample=false] -> CV accuracy 0.8868", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=41, clip=true, oversample=false] -> CV accuracy 0.8915", "Bagging [maxDepth=20, nodeSize=5, ntrees=300, features=41, clip=true, oversample=false] -> CV accuracy 0.8891", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=25, clip=true, oversample=false] (top-25 per-fold ranking, clip=true) -> CV accuracy 0.8868", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=25, clip=false, oversample=false] (top-25 per-fold ranking, clip=false) -> CV accuracy 0.8799", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=20, clip=true, oversample=false] (top-20 per-fold ranking, clip=true) -> CV accuracy 0.8776", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=20, clip=false, oversample=false] (top-20 per-fold ranking, clip=false) -> CV accuracy 0.8753", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=15, clip=true, oversample=false] (top-15 per-fold ranking, clip=true) -> CV accuracy 0.8568", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=15, clip=false, oversample=false] (top-15 per-fold ranking, clip=false) -> CV accuracy 0.8568", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=10, clip=true, oversample=false] (top-10 per-fold ranking, clip=true) -> CV accuracy 0.8661", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=10, clip=false, oversample=false] (top-10 per-fold ranking, clip=false) -> CV accuracy 0.8684", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=41, clip=false, oversample=false] -> CV accuracy 0.8891", "Bagging [maxDepth=20, nodeSize=1, ntrees=100, features=41, clip=true, oversample=true] -> CV accuracy 0.8614" ],
+    "AdaBoost" : [ "AdaBoost [maxDepth=2, maxNodes=4, nodeSize=1, ntrees=300, features=41, clip=true, oversample=false] -> CV accuracy 0.8707", "AdaBoost [maxDepth=2, maxNodes=2, nodeSize=1, ntrees=100, features=41, clip=true, oversample=false] -> CV accuracy 0.8753", "AdaBoost [maxDepth=2, maxNodes=6, nodeSize=1, ntrees=500, features=41, clip=true, oversample=false] -> CV accuracy 0.8661", "AdaBoost [maxDepth=3, maxNodes=8, nodeSize=1, ntrees=300, features=41, clip=true, oversample=false] -> CV accuracy 0.8938", "AdaBoost [maxDepth=2, maxNodes=4, nodeSize=1, ntrees=200, features=41, clip=true, oversample=false] -> CV accuracy 0.8753", "AdaBoost [maxDepth=3, maxNodes=8, nodeSize=1, ntrees=300, features=25, clip=true, oversample=false] (top-25 per-fold ranking, clip=true) -> CV accuracy 0.8753", "AdaBoost [maxDepth=3, maxNodes=8, nodeSize=1, ntrees=300, features=25, clip=false, oversample=false] (top-25 per-fold ranking, clip=false) -> CV accuracy 0.8776", "AdaBoost [maxDepth=3, maxNodes=8, nodeSize=1, ntrees=300, features=20, clip=true, oversample=false] (top-20 per-fold ranking, clip=true) -> CV accuracy 0.8614", "AdaBoost [maxDepth=3, maxNodes=8, nodeSize=1, ntrees=300, features=20, clip=false, oversample=false] (top-20 per-fold ranking, clip=false) -> CV accuracy 0.8684", "AdaBoost [maxDepth=3, maxNodes=8, nodeSize=1, ntrees=300, features=15, clip=true, oversample=false] (top-15 per-fold ranking, clip=true) -> CV accuracy 0.8499", "AdaBoost [maxDepth=3, maxNodes=8, nodeSize=1, ntrees=300, features=15, clip=false, oversample=false] (top-15 per-fold ranking, clip=false) -> CV accuracy 0.8383", "AdaBoost [maxDepth=3, maxNodes=8, nodeSize=1, ntrees=300, features=10, clip=true, oversample=false] (top-10 per-fold ranking, clip=true) -> CV accuracy 0.8522", "AdaBoost [maxDepth=3, maxNodes=8, nodeSize=1, ntrees=300, features=10, clip=false, oversample=false] (top-10 per-fold ranking, clip=false) -> CV accuracy 0.8476", "AdaBoost [maxDepth=3, maxNodes=8, nodeSize=1, ntrees=300, features=41, clip=false, oversample=false] -> CV accuracy 0.8915", "AdaBoost [maxDepth=3, maxNodes=8, nodeSize=1, ntrees=300, features=41, clip=true, oversample=true] -> CV accuracy 0.8799" ],
+    "Gradient Boosting" : [ "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=41, clip=true, oversample=false] -> CV accuracy 0.9122", "Gradient Boosting [maxDepth=2, maxNodes=6, nodeSize=5, ntrees=300, shrinkage=0.1, subsample=0.8, features=41, clip=true, oversample=false] -> CV accuracy 0.8915", "Gradient Boosting [maxDepth=5, maxNodes=31, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=41, clip=true, oversample=false] -> CV accuracy 0.9076", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=200, shrinkage=0.1, subsample=1.0, features=41, clip=true, oversample=false] -> CV accuracy 0.9076", "Gradient Boosting [maxDepth=2, maxNodes=6, nodeSize=5, ntrees=800, shrinkage=0.03, subsample=0.7, features=41, clip=true, oversample=false] -> CV accuracy 0.9076", "Gradient Boosting [maxDepth=3, maxNodes=15, nodeSize=3, ntrees=500, shrinkage=0.05, subsample=0.7, features=41, clip=true, oversample=false] -> CV accuracy 0.9030", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=25, clip=true, oversample=false] (top-25 per-fold ranking, clip=true) -> CV accuracy 0.9099", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=25, clip=false, oversample=false] (top-25 per-fold ranking, clip=false) -> CV accuracy 0.9099", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=20, clip=true, oversample=false] (top-20 per-fold ranking, clip=true) -> CV accuracy 0.8915", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=20, clip=false, oversample=false] (top-20 per-fold ranking, clip=false) -> CV accuracy 0.8915", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=15, clip=true, oversample=false] (top-15 per-fold ranking, clip=true) -> CV accuracy 0.8684", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=15, clip=false, oversample=false] (top-15 per-fold ranking, clip=false) -> CV accuracy 0.8661", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=10, clip=true, oversample=false] (top-10 per-fold ranking, clip=true) -> CV accuracy 0.8614", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=10, clip=false, oversample=false] (top-10 per-fold ranking, clip=false) -> CV accuracy 0.8591", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=41, clip=false, oversample=false] -> CV accuracy 0.9099", "Gradient Boosting [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=41, clip=true, oversample=true] -> CV accuracy 0.9007" ],
     "Logistic Regression" : [ "Logistic Regression {lambda=0.01} -> CV accuracy 0.8684", "Logistic Regression {lambda=0.1} -> CV accuracy 0.8707", "Logistic Regression {lambda=1.0} -> CV accuracy 0.8661" ],
-    "Decision Tree" : [ "Decision Tree [maxDepth=3, maxNodes=31, nodeSize=1, features=41, clip=true, oversample=false] -> CV accuracy 0.8106", "Decision Tree [maxDepth=5, maxNodes=31, nodeSize=1, features=41, clip=true, oversample=false] -> CV accuracy 0.8476", "Decision Tree [maxDepth=5, maxNodes=31, nodeSize=5, features=41, clip=true, oversample=false] -> CV accuracy 0.8360", "Decision Tree [maxDepth=10, maxNodes=31, nodeSize=1, features=41, clip=true, oversample=false] -> CV accuracy 0.8152" ],
-    "SVM (Linear)" : [ "SVM (Linear) {C=0.1} -> CV accuracy 0.8938", "SVM (Linear) {C=1.0} -> CV accuracy 0.8776", "SVM (Linear) {C=10.0} -> CV accuracy 0.7298" ],
+    "Decision Tree" : [ "Decision Tree [maxDepth=3, maxNodes=31, nodeSize=1, features=41, clip=true, oversample=false] -> CV accuracy 0.8106", "Decision Tree [maxDepth=5, maxNodes=31, nodeSize=1, features=41, clip=true, oversample=false] -> CV accuracy 0.8499", "Decision Tree [maxDepth=5, maxNodes=31, nodeSize=5, features=41, clip=true, oversample=false] -> CV accuracy 0.8360", "Decision Tree [maxDepth=10, maxNodes=31, nodeSize=1, features=41, clip=true, oversample=false] -> CV accuracy 0.8152" ],
+    "SVM (Linear)" : [ "SVM (Linear) {C=0.1} -> CV accuracy 0.8961", "SVM (Linear) {C=1.0} -> CV accuracy 0.8614", "SVM (Linear) {C=10.0} -> CV accuracy 0.7113" ],
     "KNN" : [ "KNN {k=3} -> CV accuracy 0.8591", "KNN {k=5} -> CV accuracy 0.8522", "KNN {k=9} -> CV accuracy 0.8591", "KNN {k=15} -> CV accuracy 0.8591" ],
-    "Gradient Boosting (Screening)" : [ "Gradient Boosting (Screening) [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=23, clip=true, oversample=false] -> CV accuracy 0.8129", "Gradient Boosting (Screening) [maxDepth=2, maxNodes=6, nodeSize=5, ntrees=300, shrinkage=0.1, subsample=0.8, features=23, clip=true, oversample=false] -> CV accuracy 0.8268", "Gradient Boosting (Screening) [maxDepth=5, maxNodes=31, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=23, clip=true, oversample=false] -> CV accuracy 0.8176", "Gradient Boosting (Screening) [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=200, shrinkage=0.1, subsample=1.0, features=23, clip=true, oversample=false] -> CV accuracy 0.8129", "Gradient Boosting (Screening) [maxDepth=2, maxNodes=6, nodeSize=5, ntrees=800, shrinkage=0.03, subsample=0.7, features=23, clip=true, oversample=false] -> CV accuracy 0.8245", "Gradient Boosting (Screening) [maxDepth=3, maxNodes=15, nodeSize=3, ntrees=500, shrinkage=0.05, subsample=0.7, features=23, clip=true, oversample=false] -> CV accuracy 0.8083" ]
+    "Gradient Boosting (Screening)" : [ "Gradient Boosting (Screening) [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=23, clip=true, oversample=false] -> CV accuracy 0.8129", "Gradient Boosting (Screening) [maxDepth=2, maxNodes=6, nodeSize=5, ntrees=300, shrinkage=0.1, subsample=0.8, features=23, clip=true, oversample=false] -> CV accuracy 0.8268", "Gradient Boosting (Screening) [maxDepth=5, maxNodes=31, nodeSize=5, ntrees=500, shrinkage=0.05, subsample=0.7, features=23, clip=true, oversample=false] -> CV accuracy 0.8222", "Gradient Boosting (Screening) [maxDepth=3, maxNodes=8, nodeSize=5, ntrees=200, shrinkage=0.1, subsample=1.0, features=23, clip=true, oversample=false] -> CV accuracy 0.8083", "Gradient Boosting (Screening) [maxDepth=2, maxNodes=6, nodeSize=5, ntrees=800, shrinkage=0.03, subsample=0.7, features=23, clip=true, oversample=false] -> CV accuracy 0.8245", "Gradient Boosting (Screening) [maxDepth=3, maxNodes=15, nodeSize=3, ntrees=500, shrinkage=0.05, subsample=0.7, features=23, clip=true, oversample=false] -> CV accuracy 0.8106" ]
   },
   "deployedThreshold" : {
     "chosenOn" : "train 5-fold CV out-of-fold probabilities, maximising F1 (ties broken toward higher recall); never tuned on the test set",
@@ -555,102 +709,117 @@
     "defaultThresholdTestPrecision" : 0.896551724137931,
     "defaultThresholdTestRecall" : 0.7428571428571429,
     "model" : "Soft Voting Ensemble",
-    "oofF1" : 0.8669201520912548,
-    "oofPrecision" : 0.9421487603305785,
-    "oofRecall" : 0.8028169014084507,
+    "oofF1" : 0.8676470588235293,
+    "oofPrecision" : 0.9076923076923077,
+    "oofRecall" : 0.8309859154929577,
     "testAccuracy" : 0.8888888888888888,
-    "testF1" : 0.8064516129032259,
-    "testPrecision" : 0.9259259259259259,
-    "testRecall" : 0.7142857142857143,
-    "threshold" : 0.55
+    "testF1" : 0.8125,
+    "testPrecision" : 0.896551724137931,
+    "testRecall" : 0.7428571428571429,
+    "threshold" : 0.5
   },
   "featureImportance" : {
-    "age" : 79.30556934373058,
-    "weightKg" : 70.28427835763233,
-    "heightCm" : 67.68719581540455,
-    "bmi" : 93.96181009538746,
-    "bloodGroup" : 25.50878306817788,
-    "pulseRate" : 34.75351204844622,
-    "rr" : 15.168947672499025,
-    "hb" : 63.05127963964584,
-    "cycle" : 36.955654194293054,
-    "cycleLength" : 53.838450560557526,
-    "marriageYears" : 78.69656315129173,
-    "pregnant" : 6.894791396586312,
-    "abortions" : 6.606941694477847,
-    "betaHcg1" : 68.98946170950302,
-    "betaHcg2" : 35.78287636345634,
-    "fsh" : 87.74869613176989,
-    "lh" : 95.08051379301881,
-    "fshLh" : 99.34934518494491,
-    "hip" : 53.691428917256175,
-    "waist" : 50.795020251439524,
-    "waistHipRatio" : 97.03917524374978,
-    "tsh" : 91.637181037492,
-    "amh" : 109.22413290182011,
-    "prl" : 93.40585442436335,
-    "vitD3" : 98.35411547500705,
-    "prg" : 71.10708698586302,
-    "rbs" : 64.27616295309087,
-    "weightGain" : 33.794743525228775,
-    "hairGrowth" : 42.07747498024014,
-    "skinDarkening" : 52.73431631220298,
-    "hairLoss" : 12.505388381616365,
-    "pimples" : 27.147114128348715,
-    "fastFood" : 37.51763455376066,
-    "regularExercise" : 12.408298246567849,
-    "bpSystolic" : 17.119762588844008,
-    "bpDiastolic" : 5.354588903988078,
-    "follicleL" : 172.44440882924195,
-    "follicleR" : 286.08271579788345,
-    "avgFollicleSizeL" : 60.52353612253207,
-    "avgFollicleSizeR" : 61.56030415284749,
-    "endometrium" : 79.29017895907005
+    "age" : 82.9727202039406,
+    "weightKg" : 68.35168077868994,
+    "heightCm" : 73.61044050907765,
+    "bmi" : 84.64758168738076,
+    "bloodGroup" : 32.02502427692526,
+    "pulseRate" : 38.00451687083886,
+    "rr" : 22.08909647040536,
+    "hb" : 63.542993619180436,
+    "cycle" : 23.751545102997536,
+    "cycleLength" : 52.078368081560804,
+    "marriageYears" : 69.5608764277311,
+    "pregnant" : 9.94362924393269,
+    "abortions" : 6.356085411916952,
+    "betaHcg1" : 68.39054902734482,
+    "betaHcg2" : 45.34295196850947,
+    "fsh" : 86.07120984231747,
+    "lh" : 80.69124527935357,
+    "fshLh" : 86.50329068755784,
+    "hip" : 65.45917628243068,
+    "waist" : 56.93331308557914,
+    "waistHipRatio" : 82.29573058585417,
+    "tsh" : 94.09655573405222,
+    "amh" : 101.51232201489034,
+    "prl" : 86.79772080834616,
+    "vitD3" : 85.12100743717008,
+    "prg" : 68.61225751350405,
+    "rbs" : 60.804867444515196,
+    "weightGain" : 22.232661631413286,
+    "hairGrowth" : 29.805544696286244,
+    "skinDarkening" : 31.033948156398807,
+    "hairLoss" : 11.057895961587375,
+    "pimples" : 21.66406813945416,
+    "fastFood" : 24.64171550095857,
+    "regularExercise" : 10.838898473542553,
+    "bpSystolic" : 18.20689618224937,
+    "bpDiastolic" : 10.279794414532894,
+    "follicleL" : 115.65491615812418,
+    "follicleR" : 154.0689603813669,
+    "avgFollicleSizeL" : 60.101206705240074,
+    "avgFollicleSizeR" : 66.61547318751424,
+    "endometrium" : 78.4227572665552
   },
   "gbmImportance" : {
-    "age" : 29.471992805814864,
-    "weightKg" : 5.0783266905682325,
-    "heightCm" : 8.730847078256978,
-    "bmi" : 12.007893624075313,
-    "bloodGroup" : 0.022606151955510186,
-    "pulseRate" : 2.8796443755513312,
-    "rr" : 2.5254449449807415,
-    "hb" : 14.275546326390849,
-    "cycle" : 105.69937409731376,
-    "cycleLength" : 51.09494171809903,
-    "marriageYears" : 23.627602170056477,
-    "pregnant" : 1.5538252066210636,
-    "abortions" : 0.12667965996732436,
-    "betaHcg1" : 23.9926408987263,
-    "betaHcg2" : 12.144120312136769,
-    "fsh" : 5.4571122749307595,
-    "lh" : 68.33622480476193,
-    "fshLh" : 103.92201125434767,
-    "hip" : 11.400296327807972,
-    "waist" : 23.671122166464542,
-    "waistHipRatio" : 33.71271914047486,
-    "tsh" : 33.89051234468174,
-    "amh" : 84.86704555226301,
-    "prl" : 17.32481348305579,
-    "vitD3" : 21.386550823791925,
-    "prg" : 16.36373296916581,
-    "rbs" : 24.7216878199753,
-    "weightGain" : 128.55895360895485,
-    "hairGrowth" : 241.60686539585114,
-    "skinDarkening" : 206.03159299966376,
-    "hairLoss" : 0.2197985342584457,
-    "pimples" : 48.32395940690148,
-    "fastFood" : 30.544978577805445,
-    "regularExercise" : 1.515577454776777,
-    "bpSystolic" : 10.621652000377555,
-    "bpDiastolic" : 0.4953414654487628,
-    "follicleL" : 285.9215699449804,
-    "follicleR" : 1199.4702052179862,
-    "avgFollicleSizeL" : 12.017225238194536,
-    "avgFollicleSizeR" : 31.63494983071815,
-    "endometrium" : 16.349273247310897
+    "age" : 29.477714983517,
+    "weightKg" : 4.611353186178762,
+    "heightCm" : 8.734984927966774,
+    "bmi" : 11.763175042240452,
+    "bloodGroup" : 0.0,
+    "pulseRate" : 2.93443370744029,
+    "rr" : 2.322152863620917,
+    "hb" : 14.28754532482117,
+    "cycle" : 105.52961963737876,
+    "cycleLength" : 51.84822355712235,
+    "marriageYears" : 23.4206386150765,
+    "pregnant" : 1.5537250630339308,
+    "abortions" : 0.11899924835365258,
+    "betaHcg1" : 24.04456870846155,
+    "betaHcg2" : 12.23102135547961,
+    "fsh" : 5.546259932919509,
+    "lh" : 69.02112404073316,
+    "fshLh" : 103.7318575617467,
+    "hip" : 11.617604298564215,
+    "waist" : 23.69638647280141,
+    "waistHipRatio" : 33.40733606977796,
+    "tsh" : 34.569106515254006,
+    "amh" : 84.61623881084981,
+    "prl" : 17.085416733571847,
+    "vitD3" : 21.180449578699978,
+    "prg" : 16.47133698525512,
+    "rbs" : 25.08202435588457,
+    "weightGain" : 128.5911043629806,
+    "hairGrowth" : 241.84925434348395,
+    "skinDarkening" : 205.78354293885266,
+    "hairLoss" : 0.22830944478106063,
+    "pimples" : 48.02886173709488,
+    "fastFood" : 30.456209452195022,
+    "regularExercise" : 1.5178331889845667,
+    "bpSystolic" : 10.473385002143525,
+    "bpDiastolic" : 0.7620155480495405,
+    "follicleL" : 285.7694276744269,
+    "follicleR" : 1199.224575531903,
+    "avgFollicleSizeL" : 11.967190165522409,
+    "avgFollicleSizeR" : 31.296615592717767,
+    "endometrium" : 16.51809042738761
   },
-  "generatedAt" : "2026-11-26T13:09:15.671909",
+  "generatedAt" : "2026-11-26T15:44:00.651177400",
+  "mcnemar" : [ {
+    "b" : 8,
+    "c" : 4,
+    "chiSquare" : 0.75,
+    "comparison" : "Soft Voting Ensemble vs Logistic Regression",
+    "method" : "McNemar exact test (two-sided binomial on discordant pairs)",
+    "pValue" : 0.3876953125
+  }, {
+    "b" : 3,
+    "c" : 2,
+    "chiSquare" : 0.0,
+    "comparison" : "Soft Voting Ensemble vs Gradient Boosting",
+    "method" : "McNemar exact test (two-sided binomial on discordant pairs)",
+    "pValue" : 1.0
+  } ],
   "modelPreprocessing" : {
     "Random Forest" : {
       "class0Count" : 291,
@@ -661,7 +830,7 @@
         "type" : "number",
         "clipHigh" : 44.68000000000001,
         "clipLow" : 20.32,
-        "default" : 31.214780600461893,
+        "default" : 31.0,
         "max" : 48.0,
         "mean" : 31.20092378752887,
         "min" : 20.0,
@@ -672,7 +841,7 @@
         "type" : "number",
         "clipHigh" : 89.0,
         "clipLow" : 33.64,
-        "default" : 59.218475750577355,
+        "default" : 59.0,
         "max" : 108.0,
         "mean" : 59.18568129330253,
         "min" : 31.0,
@@ -683,7 +852,7 @@
         "type" : "number",
         "clipHigh" : 172.0,
         "clipLow" : 144.0,
-        "default" : 156.40423094688217,
+        "default" : 156.0,
         "max" : 180.0,
         "mean" : 156.40261431870664,
         "min" : 137.0,
@@ -694,7 +863,7 @@
         "type" : "number",
         "clipHigh" : 34.185865408000005,
         "clipLow" : 14.3744144944,
-        "default" : 24.17135089558892,
+        "default" : 24.00548697,
         "max" : 38.5393827,
         "mean" : 24.156032292013858,
         "min" : 12.41788175,
@@ -705,7 +874,7 @@
         "type" : "number",
         "clipHigh" : 17.0,
         "clipLow" : 11.0,
-        "default" : 13.81986143187067,
+        "default" : 15.0,
         "max" : 18.0,
         "mean" : 13.815242494226329,
         "min" : 11.0,
@@ -716,7 +885,7 @@
         "type" : "number",
         "clipHigh" : 80.0,
         "clipLow" : 70.0,
-        "default" : 73.21939953810623,
+        "default" : 72.0,
         "max" : 82.0,
         "mean" : 73.46189376443418,
         "min" : 13.0,
@@ -727,7 +896,7 @@
         "type" : "number",
         "clipHigh" : 24.0,
         "clipLow" : 16.0,
-        "default" : 19.290993071593533,
+        "default" : 18.0,
         "max" : 28.0,
         "mean" : 19.27713625866051,
         "min" : 16.0,
@@ -738,7 +907,7 @@
         "type" : "number",
         "clipHigh" : 13.8,
         "clipLow" : 9.432,
-        "default" : 11.158383371824488,
+        "default" : 11.0,
         "max" : 14.2,
         "mean" : 11.159907621247122,
         "min" : 8.5,
@@ -749,7 +918,7 @@
         "type" : "number",
         "clipHigh" : 4.0,
         "clipLow" : 2.0,
-        "default" : 2.561200923787529,
+        "default" : 2.0,
         "max" : 5.0,
         "mean" : 2.558891454965358,
         "min" : 2.0,
@@ -760,7 +929,7 @@
         "type" : "number",
         "clipHigh" : 10.680000000000007,
         "clipLow" : 2.0,
-        "default" : 4.919168591224018,
+        "default" : 5.0,
         "max" : 12.0,
         "mean" : 4.915473441108546,
         "min" : 0.0,
@@ -771,18 +940,18 @@
         "type" : "number",
         "clipHigh" : 21.360000000000014,
         "clipLow" : 1.0,
-        "default" : 7.390509259259259,
+        "default" : 7.0,
         "max" : 25.0,
-        "mean" : 7.371571614917458,
+        "mean" : 7.37066974595843,
         "min" : 0.0,
-        "std" : 4.464824840586237
+        "std" : 4.464860364376507
       }, {
         "key" : "pregnant",
         "label" : "Pregnant (0 = No, 1 = Yes)",
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.3833718244803695,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.3833718244803695,
         "min" : 0.0,
@@ -793,7 +962,7 @@
         "type" : "number",
         "clipHigh" : 3.0,
         "clipLow" : 0.0,
-        "default" : 0.279445727482679,
+        "default" : 0.0,
         "max" : 5.0,
         "mean" : 0.2702078521939954,
         "min" : 0.0,
@@ -804,7 +973,7 @@
         "type" : "number",
         "clipHigh" : 19855.333200000026,
         "clipLow" : 1.97,
-        "default" : 591.2052332563502,
+        "default" : 22.0,
         "max" : 30004.0,
         "mean" : 533.2876951501148,
         "min" : 1.3,
@@ -815,7 +984,7 @@
         "type" : "number",
         "clipHigh" : 3719.341600000004,
         "clipLow" : 1.99,
-        "default" : 219.66787297921536,
+        "default" : 1.99,
         "max" : 21084.21,
         "mean" : 147.80659815242447,
         "min" : 1.65,
@@ -826,7 +995,7 @@
         "type" : "number",
         "clipHigh" : 13.381600000000011,
         "clipLow" : 1.0,
-        "default" : 16.841404157043886,
+        "default" : 4.86,
         "max" : 5052.0,
         "mean" : 5.0305450346420315,
         "min" : 0.21,
@@ -837,7 +1006,7 @@
         "type" : "number",
         "clipHigh" : 9.961200000000002,
         "clipLow" : 0.10960000000000002,
-        "default" : 7.406249422632796,
+        "default" : 2.34,
         "max" : 2018.0,
         "mean" : 2.756207852193995,
         "min" : 0.02,
@@ -848,7 +1017,7 @@
         "type" : "number",
         "clipHigh" : 29.27538461560001,
         "clipLow" : 0.4352517986,
-        "default" : 6.904905321395386,
+        "default" : 2.160326087,
         "max" : 1372.826087,
         "mean" : 3.666489558480828,
         "min" : 0.002145688801,
@@ -859,7 +1028,7 @@
         "type" : "number",
         "clipHigh" : 47.360000000000014,
         "clipLow" : 28.0,
-        "default" : 37.9838337182448,
+        "default" : 38.0,
         "max" : 48.0,
         "mean" : 37.990300230946886,
         "min" : 26.0,
@@ -870,7 +1039,7 @@
         "type" : "number",
         "clipHigh" : 43.68000000000001,
         "clipLow" : 25.0,
-        "default" : 33.787528868360276,
+        "default" : 34.0,
         "max" : 46.0,
         "mean" : 33.786143187066976,
         "min" : 24.0,
@@ -881,7 +1050,7 @@
         "type" : "number",
         "clipHigh" : 0.9736842105,
         "clipLow" : 0.78691729322,
-        "default" : 0.8909108507501146,
+        "default" : 0.8947368421,
         "max" : 0.9772727273,
         "mean" : 0.8910044235057728,
         "min" : 0.7555555556,
@@ -892,7 +1061,7 @@
         "type" : "number",
         "clipHigh" : 16.673200000000005,
         "clipLow" : 0.27640000000000003,
-        "default" : 2.966806004618938,
+        "default" : 2.2,
         "max" : 65.0,
         "mean" : 2.8195265588914546,
         "min" : 0.04,
@@ -903,18 +1072,18 @@
         "type" : "number",
         "clipHigh" : 24.99200000000003,
         "clipLow" : 0.2832,
-        "default" : 5.6309791666666635,
+        "default" : 3.8499999999999996,
         "max" : 66.0,
-        "mean" : 5.506120044264816,
+        "mean" : 5.5020069284064625,
         "min" : 0.1,
-        "std" : 5.099237695542389
+        "std" : 5.099853567652643
       }, {
         "key" : "prl",
         "label" : "PRL (ng/mL)",
         "type" : "number",
         "clipHigh" : 95.20680000000003,
         "clipLow" : 3.8612,
-        "default" : 24.306951501154735,
+        "default" : 21.14,
         "max" : 128.24,
         "mean" : 24.196304849884527,
         "min" : 0.4,
@@ -925,7 +1094,7 @@
         "type" : "number",
         "clipHigh" : 73.22960000000003,
         "clipLow" : 9.264,
-        "default" : 43.23863972286374,
+        "default" : 26.3,
         "max" : 6014.66,
         "mean" : 29.47027482678986,
         "min" : 0.0,
@@ -936,7 +1105,7 @@
         "type" : "number",
         "clipHigh" : 2.8920000000000163,
         "clipLow" : 0.15,
-        "default" : 0.6683510392609696,
+        "default" : 0.31,
         "max" : 85.0,
         "mean" : 0.41445496535796766,
         "min" : 0.047,
@@ -947,7 +1116,7 @@
         "type" : "number",
         "clipHigh" : 139.36,
         "clipLow" : 72.0,
-        "default" : 99.5501154734411,
+        "default" : 98.0,
         "max" : 225.0,
         "mean" : 99.31408775981524,
         "min" : 60.0,
@@ -958,7 +1127,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.3625866050808314,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.3625866050808314,
         "min" : 0.0,
@@ -969,7 +1138,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.2517321016166282,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.2517321016166282,
         "min" : 0.0,
@@ -980,7 +1149,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.30484988452655887,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.30484988452655887,
         "min" : 0.0,
@@ -991,7 +1160,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.43648960739030024,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.43648960739030024,
         "min" : 0.0,
@@ -1002,7 +1171,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.5011547344110855,
+        "default" : 1.0,
         "max" : 1.0,
         "mean" : 0.5011547344110855,
         "min" : 0.0,
@@ -1013,7 +1182,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.5127020785219399,
+        "default" : 1.0,
         "max" : 1.0,
         "mean" : 0.5127020785219399,
         "min" : 0.0,
@@ -1024,7 +1193,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.2586605080831409,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.2586605080831409,
         "min" : 0.0,
@@ -1035,7 +1204,7 @@
         "type" : "number",
         "clipHigh" : 130.0,
         "clipLow" : 100.0,
-        "default" : 114.46189376443418,
+        "default" : 110.0,
         "max" : 140.0,
         "mean" : 114.6189376443418,
         "min" : 12.0,
@@ -1046,7 +1215,7 @@
         "type" : "number",
         "clipHigh" : 80.0,
         "clipLow" : 70.0,
-        "default" : 76.7621247113164,
+        "default" : 80.0,
         "max" : 100.0,
         "mean" : 76.88221709006929,
         "min" : 8.0,
@@ -1057,7 +1226,7 @@
         "type" : "number",
         "clipHigh" : 20.0,
         "clipLow" : 0.0,
-        "default" : 6.221709006928407,
+        "default" : 5.0,
         "max" : 22.0,
         "mean" : 6.210161662817552,
         "min" : 0.0,
@@ -1068,7 +1237,7 @@
         "type" : "number",
         "clipHigh" : 19.680000000000007,
         "clipLow" : 0.0,
-        "default" : 6.734411085450346,
+        "default" : 6.0,
         "max" : 20.0,
         "mean" : 6.730715935334872,
         "min" : 0.0,
@@ -1079,7 +1248,7 @@
         "type" : "number",
         "clipHigh" : 21.0,
         "clipLow" : 0.0,
-        "default" : 15.026096997690532,
+        "default" : 15.0,
         "max" : 24.0,
         "mean" : 15.016859122401849,
         "min" : 0.0,
@@ -1090,7 +1259,7 @@
         "type" : "number",
         "clipHigh" : 21.0,
         "clipLow" : 5.864,
-        "default" : 15.43688221709007,
+        "default" : 16.0,
         "max" : 24.0,
         "mean" : 15.457321016166283,
         "min" : 0.0,
@@ -1101,7 +1270,7 @@
         "type" : "number",
         "clipHigh" : 14.0,
         "clipLow" : 3.932,
-        "default" : 8.477413394919166,
+        "default" : 8.5,
         "max" : 18.0,
         "mean" : 8.475935334872975,
         "min" : 0.0,
@@ -1121,7 +1290,7 @@
         "type" : "number",
         "clipHigh" : 44.68000000000001,
         "clipLow" : 20.32,
-        "default" : 31.214780600461893,
+        "default" : 31.0,
         "max" : 48.0,
         "mean" : 31.20092378752887,
         "min" : 20.0,
@@ -1132,7 +1301,7 @@
         "type" : "number",
         "clipHigh" : 89.0,
         "clipLow" : 33.64,
-        "default" : 59.218475750577355,
+        "default" : 59.0,
         "max" : 108.0,
         "mean" : 59.18568129330253,
         "min" : 31.0,
@@ -1143,7 +1312,7 @@
         "type" : "number",
         "clipHigh" : 172.0,
         "clipLow" : 144.0,
-        "default" : 156.40423094688217,
+        "default" : 156.0,
         "max" : 180.0,
         "mean" : 156.40261431870664,
         "min" : 137.0,
@@ -1154,7 +1323,7 @@
         "type" : "number",
         "clipHigh" : 34.185865408000005,
         "clipLow" : 14.3744144944,
-        "default" : 24.17135089558892,
+        "default" : 24.00548697,
         "max" : 38.5393827,
         "mean" : 24.156032292013858,
         "min" : 12.41788175,
@@ -1165,7 +1334,7 @@
         "type" : "number",
         "clipHigh" : 17.0,
         "clipLow" : 11.0,
-        "default" : 13.81986143187067,
+        "default" : 15.0,
         "max" : 18.0,
         "mean" : 13.815242494226329,
         "min" : 11.0,
@@ -1176,7 +1345,7 @@
         "type" : "number",
         "clipHigh" : 80.0,
         "clipLow" : 70.0,
-        "default" : 73.21939953810623,
+        "default" : 72.0,
         "max" : 82.0,
         "mean" : 73.46189376443418,
         "min" : 13.0,
@@ -1187,7 +1356,7 @@
         "type" : "number",
         "clipHigh" : 24.0,
         "clipLow" : 16.0,
-        "default" : 19.290993071593533,
+        "default" : 18.0,
         "max" : 28.0,
         "mean" : 19.27713625866051,
         "min" : 16.0,
@@ -1198,7 +1367,7 @@
         "type" : "number",
         "clipHigh" : 13.8,
         "clipLow" : 9.432,
-        "default" : 11.158383371824488,
+        "default" : 11.0,
         "max" : 14.2,
         "mean" : 11.159907621247122,
         "min" : 8.5,
@@ -1209,7 +1378,7 @@
         "type" : "number",
         "clipHigh" : 4.0,
         "clipLow" : 2.0,
-        "default" : 2.561200923787529,
+        "default" : 2.0,
         "max" : 5.0,
         "mean" : 2.558891454965358,
         "min" : 2.0,
@@ -1220,7 +1389,7 @@
         "type" : "number",
         "clipHigh" : 10.680000000000007,
         "clipLow" : 2.0,
-        "default" : 4.919168591224018,
+        "default" : 5.0,
         "max" : 12.0,
         "mean" : 4.915473441108546,
         "min" : 0.0,
@@ -1231,18 +1400,18 @@
         "type" : "number",
         "clipHigh" : 21.360000000000014,
         "clipLow" : 1.0,
-        "default" : 7.390509259259259,
+        "default" : 7.0,
         "max" : 25.0,
-        "mean" : 7.371571614917458,
+        "mean" : 7.37066974595843,
         "min" : 0.0,
-        "std" : 4.464824840586237
+        "std" : 4.464860364376507
       }, {
         "key" : "pregnant",
         "label" : "Pregnant (0 = No, 1 = Yes)",
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.3833718244803695,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.3833718244803695,
         "min" : 0.0,
@@ -1253,7 +1422,7 @@
         "type" : "number",
         "clipHigh" : 3.0,
         "clipLow" : 0.0,
-        "default" : 0.279445727482679,
+        "default" : 0.0,
         "max" : 5.0,
         "mean" : 0.2702078521939954,
         "min" : 0.0,
@@ -1264,7 +1433,7 @@
         "type" : "number",
         "clipHigh" : 19855.333200000026,
         "clipLow" : 1.97,
-        "default" : 591.2052332563502,
+        "default" : 22.0,
         "max" : 30004.0,
         "mean" : 533.2876951501148,
         "min" : 1.3,
@@ -1275,7 +1444,7 @@
         "type" : "number",
         "clipHigh" : 3719.341600000004,
         "clipLow" : 1.99,
-        "default" : 219.66787297921536,
+        "default" : 1.99,
         "max" : 21084.21,
         "mean" : 147.80659815242447,
         "min" : 1.65,
@@ -1286,7 +1455,7 @@
         "type" : "number",
         "clipHigh" : 13.381600000000011,
         "clipLow" : 1.0,
-        "default" : 16.841404157043886,
+        "default" : 4.86,
         "max" : 5052.0,
         "mean" : 5.0305450346420315,
         "min" : 0.21,
@@ -1297,7 +1466,7 @@
         "type" : "number",
         "clipHigh" : 9.961200000000002,
         "clipLow" : 0.10960000000000002,
-        "default" : 7.406249422632796,
+        "default" : 2.34,
         "max" : 2018.0,
         "mean" : 2.756207852193995,
         "min" : 0.02,
@@ -1308,7 +1477,7 @@
         "type" : "number",
         "clipHigh" : 29.27538461560001,
         "clipLow" : 0.4352517986,
-        "default" : 6.904905321395386,
+        "default" : 2.160326087,
         "max" : 1372.826087,
         "mean" : 3.666489558480828,
         "min" : 0.002145688801,
@@ -1319,7 +1488,7 @@
         "type" : "number",
         "clipHigh" : 47.360000000000014,
         "clipLow" : 28.0,
-        "default" : 37.9838337182448,
+        "default" : 38.0,
         "max" : 48.0,
         "mean" : 37.990300230946886,
         "min" : 26.0,
@@ -1330,7 +1499,7 @@
         "type" : "number",
         "clipHigh" : 43.68000000000001,
         "clipLow" : 25.0,
-        "default" : 33.787528868360276,
+        "default" : 34.0,
         "max" : 46.0,
         "mean" : 33.786143187066976,
         "min" : 24.0,
@@ -1341,7 +1510,7 @@
         "type" : "number",
         "clipHigh" : 0.9736842105,
         "clipLow" : 0.78691729322,
-        "default" : 0.8909108507501146,
+        "default" : 0.8947368421,
         "max" : 0.9772727273,
         "mean" : 0.8910044235057728,
         "min" : 0.7555555556,
@@ -1352,7 +1521,7 @@
         "type" : "number",
         "clipHigh" : 16.673200000000005,
         "clipLow" : 0.27640000000000003,
-        "default" : 2.966806004618938,
+        "default" : 2.2,
         "max" : 65.0,
         "mean" : 2.8195265588914546,
         "min" : 0.04,
@@ -1363,18 +1532,18 @@
         "type" : "number",
         "clipHigh" : 24.99200000000003,
         "clipLow" : 0.2832,
-        "default" : 5.6309791666666635,
+        "default" : 3.8499999999999996,
         "max" : 66.0,
-        "mean" : 5.506120044264816,
+        "mean" : 5.5020069284064625,
         "min" : 0.1,
-        "std" : 5.099237695542389
+        "std" : 5.099853567652643
       }, {
         "key" : "prl",
         "label" : "PRL (ng/mL)",
         "type" : "number",
         "clipHigh" : 95.20680000000003,
         "clipLow" : 3.8612,
-        "default" : 24.306951501154735,
+        "default" : 21.14,
         "max" : 128.24,
         "mean" : 24.196304849884527,
         "min" : 0.4,
@@ -1385,7 +1554,7 @@
         "type" : "number",
         "clipHigh" : 73.22960000000003,
         "clipLow" : 9.264,
-        "default" : 43.23863972286374,
+        "default" : 26.3,
         "max" : 6014.66,
         "mean" : 29.47027482678986,
         "min" : 0.0,
@@ -1396,7 +1565,7 @@
         "type" : "number",
         "clipHigh" : 2.8920000000000163,
         "clipLow" : 0.15,
-        "default" : 0.6683510392609696,
+        "default" : 0.31,
         "max" : 85.0,
         "mean" : 0.41445496535796766,
         "min" : 0.047,
@@ -1407,7 +1576,7 @@
         "type" : "number",
         "clipHigh" : 139.36,
         "clipLow" : 72.0,
-        "default" : 99.5501154734411,
+        "default" : 98.0,
         "max" : 225.0,
         "mean" : 99.31408775981524,
         "min" : 60.0,
@@ -1418,7 +1587,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.3625866050808314,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.3625866050808314,
         "min" : 0.0,
@@ -1429,7 +1598,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.2517321016166282,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.2517321016166282,
         "min" : 0.0,
@@ -1440,7 +1609,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.30484988452655887,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.30484988452655887,
         "min" : 0.0,
@@ -1451,7 +1620,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.43648960739030024,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.43648960739030024,
         "min" : 0.0,
@@ -1462,7 +1631,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.5011547344110855,
+        "default" : 1.0,
         "max" : 1.0,
         "mean" : 0.5011547344110855,
         "min" : 0.0,
@@ -1473,7 +1642,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.5127020785219399,
+        "default" : 1.0,
         "max" : 1.0,
         "mean" : 0.5127020785219399,
         "min" : 0.0,
@@ -1484,7 +1653,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.2586605080831409,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.2586605080831409,
         "min" : 0.0,
@@ -1495,7 +1664,7 @@
         "type" : "number",
         "clipHigh" : 130.0,
         "clipLow" : 100.0,
-        "default" : 114.46189376443418,
+        "default" : 110.0,
         "max" : 140.0,
         "mean" : 114.6189376443418,
         "min" : 12.0,
@@ -1506,7 +1675,7 @@
         "type" : "number",
         "clipHigh" : 80.0,
         "clipLow" : 70.0,
-        "default" : 76.7621247113164,
+        "default" : 80.0,
         "max" : 100.0,
         "mean" : 76.88221709006929,
         "min" : 8.0,
@@ -1517,7 +1686,7 @@
         "type" : "number",
         "clipHigh" : 20.0,
         "clipLow" : 0.0,
-        "default" : 6.221709006928407,
+        "default" : 5.0,
         "max" : 22.0,
         "mean" : 6.210161662817552,
         "min" : 0.0,
@@ -1528,7 +1697,7 @@
         "type" : "number",
         "clipHigh" : 19.680000000000007,
         "clipLow" : 0.0,
-        "default" : 6.734411085450346,
+        "default" : 6.0,
         "max" : 20.0,
         "mean" : 6.730715935334872,
         "min" : 0.0,
@@ -1539,7 +1708,7 @@
         "type" : "number",
         "clipHigh" : 21.0,
         "clipLow" : 0.0,
-        "default" : 15.026096997690532,
+        "default" : 15.0,
         "max" : 24.0,
         "mean" : 15.016859122401849,
         "min" : 0.0,
@@ -1550,7 +1719,7 @@
         "type" : "number",
         "clipHigh" : 21.0,
         "clipLow" : 5.864,
-        "default" : 15.43688221709007,
+        "default" : 16.0,
         "max" : 24.0,
         "mean" : 15.457321016166283,
         "min" : 0.0,
@@ -1561,7 +1730,7 @@
         "type" : "number",
         "clipHigh" : 14.0,
         "clipLow" : 3.932,
-        "default" : 8.477413394919166,
+        "default" : 8.5,
         "max" : 18.0,
         "mean" : 8.475935334872975,
         "min" : 0.0,
@@ -1579,130 +1748,130 @@
         "key" : "age",
         "label" : "Age (years)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 31.214780600461893,
+        "clipHigh" : 44.68000000000001,
+        "clipLow" : 20.32,
+        "default" : 31.0,
         "max" : 48.0,
-        "mean" : 31.214780600461893,
+        "mean" : 31.20092378752887,
         "min" : 20.0,
-        "std" : 5.2386521819992415
+        "std" : 5.18136285995976
       }, {
         "key" : "weightKg",
         "label" : "Weight (kg)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 59.218475750577355,
+        "clipHigh" : 89.0,
+        "clipLow" : 33.64,
+        "default" : 59.0,
         "max" : 108.0,
-        "mean" : 59.218475750577355,
+        "mean" : 59.18568129330253,
         "min" : 31.0,
-        "std" : 10.605316131081334
+        "std" : 10.382668898235613
       }, {
         "key" : "heightCm",
         "label" : "Height (cm)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 156.40423094688217,
+        "clipHigh" : 172.0,
+        "clipLow" : 144.0,
+        "default" : 156.0,
         "max" : 180.0,
-        "mean" : 156.40423094688217,
+        "mean" : 156.40261431870664,
         "min" : 137.0,
-        "std" : 6.074459848425023
+        "std" : 5.927890166869212
       }, {
         "key" : "bmi",
         "label" : "BMI",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 24.17135089558892,
+        "clipHigh" : 34.185865408000005,
+        "clipLow" : 14.3744144944,
+        "default" : 24.00548697,
         "max" : 38.5393827,
-        "mean" : 24.17135089558892,
+        "mean" : 24.156032292013858,
         "min" : 12.41788175,
-        "std" : 3.917735364766301
+        "std" : 3.812075897913168
       }, {
         "key" : "bloodGroup",
         "label" : "Blood group (code)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 13.81986143187067,
+        "clipHigh" : 17.0,
+        "clipLow" : 11.0,
+        "default" : 15.0,
         "max" : 18.0,
-        "mean" : 13.81986143187067,
+        "mean" : 13.815242494226329,
         "min" : 11.0,
-        "std" : 1.8574792273686451
+        "std" : 1.8482995115466594
       }, {
         "key" : "pulseRate",
         "label" : "Pulse rate (bpm)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 73.21939953810623,
+        "clipHigh" : 80.0,
+        "clipLow" : 70.0,
+        "default" : 72.0,
         "max" : 82.0,
-        "mean" : 73.21939953810623,
+        "mean" : 73.46189376443418,
         "min" : 13.0,
-        "std" : 4.750630696886285
+        "std" : 2.645149487872919
       }, {
         "key" : "rr",
         "label" : "Respiratory rate (breaths/min)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 19.290993071593533,
+        "clipHigh" : 24.0,
+        "clipLow" : 16.0,
+        "default" : 18.0,
         "max" : 28.0,
-        "mean" : 19.290993071593533,
+        "mean" : 19.27713625866051,
         "min" : 16.0,
-        "std" : 1.6670526001828754
+        "std" : 1.613127188988487
       }, {
         "key" : "hb",
         "label" : "Haemoglobin (g/dl)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 11.158383371824488,
+        "clipHigh" : 13.8,
+        "clipLow" : 9.432,
+        "default" : 11.0,
         "max" : 14.2,
-        "mean" : 11.158383371824488,
+        "mean" : 11.159907621247122,
         "min" : 8.5,
-        "std" : 0.8507525107516839
+        "std" : 0.8362869054534519
       }, {
         "key" : "cycle",
         "label" : "Cycle (R/I)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 2.561200923787529,
+        "clipHigh" : 4.0,
+        "clipLow" : 2.0,
+        "default" : 2.0,
         "max" : 5.0,
-        "mean" : 2.561200923787529,
+        "mean" : 2.558891454965358,
         "min" : 2.0,
-        "std" : 0.9024321454722193
+        "std" : 0.897453760088745
       }, {
         "key" : "cycleLength",
         "label" : "Cycle length (days)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 4.919168591224018,
+        "clipHigh" : 10.680000000000007,
+        "clipLow" : 2.0,
+        "default" : 5.0,
         "max" : 12.0,
-        "mean" : 4.919168591224018,
+        "mean" : 4.915473441108546,
         "min" : 0.0,
-        "std" : 1.4906722298178834
+        "std" : 1.4426834823886248
       }, {
         "key" : "marriageYears",
         "label" : "Marriage duration (years)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 7.390509259259259,
+        "clipHigh" : 21.360000000000014,
+        "clipLow" : 1.0,
+        "default" : 7.0,
         "max" : 25.0,
-        "mean" : 7.390509259259258,
+        "mean" : 7.37066974595843,
         "min" : 0.0,
-        "std" : 4.540403957967955
+        "std" : 4.464860364376507
       }, {
         "key" : "pregnant",
         "label" : "Pregnant (0 = No, 1 = Yes)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 0.3833718244803695,
+        "clipHigh" : 1.0,
+        "clipLow" : 0.0,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.3833718244803695,
         "min" : 0.0,
@@ -1711,174 +1880,174 @@
         "key" : "abortions",
         "label" : "No. of abortions",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 0.279445727482679,
+        "clipHigh" : 3.0,
+        "clipLow" : 0.0,
+        "default" : 0.0,
         "max" : 5.0,
-        "mean" : 0.279445727482679,
+        "mean" : 0.2702078521939954,
         "min" : 0.0,
-        "std" : 0.7082279010012047
+        "std" : 0.6613473567743929
       }, {
         "key" : "betaHcg1",
         "label" : "Beta-HCG I (mIU/mL)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 591.2052332563502,
+        "clipHigh" : 19855.333200000026,
+        "clipLow" : 1.97,
+        "default" : 22.0,
         "max" : 30004.0,
-        "mean" : 591.2052332563502,
+        "mean" : 533.2876951501148,
         "min" : 1.3,
-        "std" : 2866.2139923598047
+        "std" : 2360.4628088119553
       }, {
         "key" : "betaHcg2",
         "label" : "Beta-HCG II (mIU/mL)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 219.66787297921536,
+        "clipHigh" : 3719.341600000004,
+        "clipLow" : 1.99,
+        "default" : 1.99,
         "max" : 21084.21,
-        "mean" : 219.66787297921536,
+        "mean" : 147.80659815242447,
         "min" : 1.65,
-        "std" : 1333.4447903508337
+        "std" : 468.3340935753566
       }, {
         "key" : "fsh",
         "label" : "FSH (mIU/mL)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 16.841404157043886,
+        "clipHigh" : 13.381600000000011,
+        "clipLow" : 1.0,
+        "default" : 4.86,
         "max" : 5052.0,
-        "mean" : 16.841404157043886,
+        "mean" : 5.0305450346420315,
         "min" : 0.21,
-        "std" : 242.2846651250512
+        "std" : 2.289519604387038
       }, {
         "key" : "lh",
         "label" : "LH (mIU/mL)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 7.406249422632796,
+        "clipHigh" : 9.961200000000002,
+        "clipLow" : 0.10960000000000002,
+        "default" : 2.34,
         "max" : 2018.0,
-        "mean" : 7.406249422632796,
+        "mean" : 2.756207852193995,
         "min" : 0.02,
-        "std" : 96.7600623970379
+        "std" : 2.190634957723077
       }, {
         "key" : "fshLh",
         "label" : "FSH/LH ratio",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 6.904905321395386,
+        "clipHigh" : 29.27538461560001,
+        "clipLow" : 0.4352517986,
+        "default" : 2.160326087,
         "max" : 1372.826087,
-        "mean" : 6.904905321395386,
+        "mean" : 3.666489558480828,
         "min" : 0.002145688801,
-        "std" : 65.9435455117898
+        "std" : 4.546584157099069
       }, {
         "key" : "hip",
         "label" : "Hip (inch)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 37.9838337182448,
+        "clipHigh" : 47.360000000000014,
+        "clipLow" : 28.0,
+        "default" : 38.0,
         "max" : 48.0,
-        "mean" : 37.9838337182448,
+        "mean" : 37.990300230946886,
         "min" : 26.0,
-        "std" : 3.987534512951689
+        "std" : 3.9309887634193608
       }, {
         "key" : "waist",
         "label" : "Waist (inch)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 33.787528868360276,
+        "clipHigh" : 43.68000000000001,
+        "clipLow" : 25.0,
+        "default" : 34.0,
         "max" : 46.0,
-        "mean" : 33.787528868360276,
+        "mean" : 33.786143187066976,
         "min" : 24.0,
-        "std" : 3.5145532654425855
+        "std" : 3.4706652093890855
       }, {
         "key" : "waistHipRatio",
         "label" : "Waist:Hip ratio",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 0.8909108507501146,
+        "clipHigh" : 0.9736842105,
+        "clipLow" : 0.78691729322,
+        "default" : 0.8947368421,
         "max" : 0.9772727273,
-        "mean" : 0.8909108507501146,
+        "mean" : 0.8910044235057728,
         "min" : 0.7555555556,
-        "std" : 0.04603428172725256
+        "std" : 0.04571760068587304
       }, {
         "key" : "tsh",
         "label" : "TSH (mIU/L)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 2.966806004618938,
+        "clipHigh" : 16.673200000000005,
+        "clipLow" : 0.27640000000000003,
+        "default" : 2.2,
         "max" : 65.0,
-        "mean" : 2.966806004618938,
+        "mean" : 2.8195265588914546,
         "min" : 0.04,
-        "std" : 3.9575189844168026
+        "std" : 2.426598635439396
       }, {
         "key" : "amh",
         "label" : "AMH (ng/mL)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 5.6309791666666635,
+        "clipHigh" : 24.99200000000003,
+        "clipLow" : 0.2832,
+        "default" : 3.8499999999999996,
         "max" : 66.0,
-        "mean" : 5.630979166666665,
+        "mean" : 5.5020069284064625,
         "min" : 0.1,
-        "std" : 5.910331111268858
+        "std" : 5.099853567652643
       }, {
         "key" : "prl",
         "label" : "PRL (ng/mL)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 24.306951501154735,
+        "clipHigh" : 95.20680000000003,
+        "clipLow" : 3.8612,
+        "default" : 21.14,
         "max" : 128.24,
-        "mean" : 24.306951501154735,
+        "mean" : 24.196304849884527,
         "min" : 0.4,
-        "std" : 15.189663981187644
+        "std" : 14.420843191415969
       }, {
         "key" : "vitD3",
         "label" : "Vitamin D3 (ng/mL)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 43.23863972286374,
+        "clipHigh" : 73.22960000000003,
+        "clipLow" : 9.264,
+        "default" : 26.3,
         "max" : 6014.66,
-        "mean" : 43.23863972286374,
+        "mean" : 29.47027482678986,
         "min" : 0.0,
-        "std" : 287.5887628050848
+        "std" : 12.691849376784768
       }, {
         "key" : "prg",
         "label" : "PRG (ng/mL)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 0.6683510392609696,
+        "clipHigh" : 2.8920000000000163,
+        "clipLow" : 0.15,
+        "default" : 0.31,
         "max" : 85.0,
-        "mean" : 0.6683510392609696,
+        "mean" : 0.41445496535796766,
         "min" : 0.047,
-        "std" : 4.250847942212316
+        "std" : 0.3319350411277236
       }, {
         "key" : "rbs",
         "label" : "Random blood sugar (mg/dl)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 99.5501154734411,
+        "clipHigh" : 139.36,
+        "clipLow" : 72.0,
+        "default" : 98.0,
         "max" : 225.0,
-        "mean" : 99.5501154734411,
+        "mean" : 99.31408775981524,
         "min" : 60.0,
-        "std" : 15.268391968023565
+        "std" : 13.790880615105934
       }, {
         "key" : "weightGain",
         "label" : "Weight gain (0 = No, 1 = Yes)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 0.3625866050808314,
+        "clipHigh" : 1.0,
+        "clipLow" : 0.0,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.3625866050808314,
         "min" : 0.0,
@@ -1887,9 +2056,9 @@
         "key" : "hairGrowth",
         "label" : "Hair growth (0 = No, 1 = Yes)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 0.2517321016166282,
+        "clipHigh" : 1.0,
+        "clipLow" : 0.0,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.2517321016166282,
         "min" : 0.0,
@@ -1898,9 +2067,9 @@
         "key" : "skinDarkening",
         "label" : "Skin darkening (0 = No, 1 = Yes)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 0.30484988452655887,
+        "clipHigh" : 1.0,
+        "clipLow" : 0.0,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.30484988452655887,
         "min" : 0.0,
@@ -1909,9 +2078,9 @@
         "key" : "hairLoss",
         "label" : "Hair loss (0 = No, 1 = Yes)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 0.43648960739030024,
+        "clipHigh" : 1.0,
+        "clipLow" : 0.0,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.43648960739030024,
         "min" : 0.0,
@@ -1920,9 +2089,9 @@
         "key" : "pimples",
         "label" : "Pimples (0 = No, 1 = Yes)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 0.5011547344110855,
+        "clipHigh" : 1.0,
+        "clipLow" : 0.0,
+        "default" : 1.0,
         "max" : 1.0,
         "mean" : 0.5011547344110855,
         "min" : 0.0,
@@ -1931,9 +2100,9 @@
         "key" : "fastFood",
         "label" : "Fast food (0 = No, 1 = Yes)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 0.5127020785219399,
+        "clipHigh" : 1.0,
+        "clipLow" : 0.0,
+        "default" : 1.0,
         "max" : 1.0,
         "mean" : 0.5127020785219399,
         "min" : 0.0,
@@ -1942,9 +2111,9 @@
         "key" : "regularExercise",
         "label" : "Regular exercise (0 = No, 1 = Yes)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 0.2586605080831409,
+        "clipHigh" : 1.0,
+        "clipLow" : 0.0,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.2586605080831409,
         "min" : 0.0,
@@ -1953,79 +2122,79 @@
         "key" : "bpSystolic",
         "label" : "BP systolic (mmHg)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 114.46189376443418,
+        "clipHigh" : 130.0,
+        "clipLow" : 100.0,
+        "default" : 110.0,
         "max" : 140.0,
-        "mean" : 114.46189376443418,
+        "mean" : 114.6189376443418,
         "min" : 12.0,
-        "std" : 7.731585624895345
+        "std" : 5.8388925978976545
       }, {
         "key" : "bpDiastolic",
         "label" : "BP diastolic (mmHg)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 76.7621247113164,
+        "clipHigh" : 80.0,
+        "clipLow" : 70.0,
+        "default" : 80.0,
         "max" : 100.0,
-        "mean" : 76.7621247113164,
+        "mean" : 76.88221709006929,
         "min" : 8.0,
-        "std" : 5.835405759814469
+        "std" : 4.6321980555510684
       }, {
         "key" : "follicleL",
         "label" : "Follicle count (left)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 6.221709006928407,
+        "clipHigh" : 20.0,
+        "clipLow" : 0.0,
+        "default" : 5.0,
         "max" : 22.0,
-        "mean" : 6.221709006928407,
+        "mean" : 6.210161662817552,
         "min" : 0.0,
-        "std" : 4.333849777302895
+        "std" : 4.295084275611385
       }, {
         "key" : "follicleR",
         "label" : "Follicle count (right)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 6.734411085450346,
+        "clipHigh" : 19.680000000000007,
+        "clipLow" : 0.0,
+        "default" : 6.0,
         "max" : 20.0,
-        "mean" : 6.734411085450346,
+        "mean" : 6.730715935334872,
         "min" : 0.0,
-        "std" : 4.493890457389665
+        "std" : 4.483099770482664
       }, {
         "key" : "avgFollicleSizeL",
         "label" : "Avg. follicle size (left, mm)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 15.026096997690532,
+        "clipHigh" : 21.0,
+        "clipLow" : 0.0,
+        "default" : 15.0,
         "max" : 24.0,
-        "mean" : 15.026096997690532,
+        "mean" : 15.016859122401849,
         "min" : 0.0,
-        "std" : 3.553840294734129
+        "std" : 3.5350004910990247
       }, {
         "key" : "avgFollicleSizeR",
         "label" : "Avg. follicle size (right, mm)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 15.43688221709007,
+        "clipHigh" : 21.0,
+        "clipLow" : 5.864,
+        "default" : 16.0,
         "max" : 24.0,
-        "mean" : 15.43688221709007,
+        "mean" : 15.457321016166283,
         "min" : 0.0,
-        "std" : 3.3287410637158414
+        "std" : 3.186455085218149
       }, {
         "key" : "endometrium",
         "label" : "Endometrium (mm)",
         "type" : "number",
-        "clipHigh" : "Infinity",
-        "clipLow" : "-Infinity",
-        "default" : 8.477413394919166,
+        "clipHigh" : 14.0,
+        "clipLow" : 3.932,
+        "default" : 8.5,
         "max" : 18.0,
-        "mean" : 8.477413394919166,
+        "mean" : 8.475935334872975,
         "min" : 0.0,
-        "std" : 2.1411903959675387
+        "std" : 2.0425817823577623
       } ],
       "seed" : 42,
       "selectedFeatures" : [ ],
@@ -2041,7 +2210,7 @@
         "type" : "number",
         "clipHigh" : 44.68000000000001,
         "clipLow" : 20.32,
-        "default" : 31.214780600461893,
+        "default" : 31.0,
         "max" : 48.0,
         "mean" : 31.20092378752887,
         "min" : 20.0,
@@ -2052,7 +2221,7 @@
         "type" : "number",
         "clipHigh" : 89.0,
         "clipLow" : 33.64,
-        "default" : 59.218475750577355,
+        "default" : 59.0,
         "max" : 108.0,
         "mean" : 59.18568129330253,
         "min" : 31.0,
@@ -2063,7 +2232,7 @@
         "type" : "number",
         "clipHigh" : 172.0,
         "clipLow" : 144.0,
-        "default" : 156.40423094688217,
+        "default" : 156.0,
         "max" : 180.0,
         "mean" : 156.40261431870664,
         "min" : 137.0,
@@ -2074,7 +2243,7 @@
         "type" : "number",
         "clipHigh" : 34.185865408000005,
         "clipLow" : 14.3744144944,
-        "default" : 24.17135089558892,
+        "default" : 24.00548697,
         "max" : 38.5393827,
         "mean" : 24.156032292013858,
         "min" : 12.41788175,
@@ -2085,7 +2254,7 @@
         "type" : "number",
         "clipHigh" : 17.0,
         "clipLow" : 11.0,
-        "default" : 13.81986143187067,
+        "default" : 15.0,
         "max" : 18.0,
         "mean" : 13.815242494226329,
         "min" : 11.0,
@@ -2096,7 +2265,7 @@
         "type" : "number",
         "clipHigh" : 80.0,
         "clipLow" : 70.0,
-        "default" : 73.21939953810623,
+        "default" : 72.0,
         "max" : 82.0,
         "mean" : 73.46189376443418,
         "min" : 13.0,
@@ -2107,7 +2276,7 @@
         "type" : "number",
         "clipHigh" : 24.0,
         "clipLow" : 16.0,
-        "default" : 19.290993071593533,
+        "default" : 18.0,
         "max" : 28.0,
         "mean" : 19.27713625866051,
         "min" : 16.0,
@@ -2118,7 +2287,7 @@
         "type" : "number",
         "clipHigh" : 13.8,
         "clipLow" : 9.432,
-        "default" : 11.158383371824488,
+        "default" : 11.0,
         "max" : 14.2,
         "mean" : 11.159907621247122,
         "min" : 8.5,
@@ -2129,7 +2298,7 @@
         "type" : "number",
         "clipHigh" : 4.0,
         "clipLow" : 2.0,
-        "default" : 2.561200923787529,
+        "default" : 2.0,
         "max" : 5.0,
         "mean" : 2.558891454965358,
         "min" : 2.0,
@@ -2140,7 +2309,7 @@
         "type" : "number",
         "clipHigh" : 10.680000000000007,
         "clipLow" : 2.0,
-        "default" : 4.919168591224018,
+        "default" : 5.0,
         "max" : 12.0,
         "mean" : 4.915473441108546,
         "min" : 0.0,
@@ -2151,18 +2320,18 @@
         "type" : "number",
         "clipHigh" : 21.360000000000014,
         "clipLow" : 1.0,
-        "default" : 7.390509259259259,
+        "default" : 7.0,
         "max" : 25.0,
-        "mean" : 7.371571614917458,
+        "mean" : 7.37066974595843,
         "min" : 0.0,
-        "std" : 4.464824840586237
+        "std" : 4.464860364376507
       }, {
         "key" : "pregnant",
         "label" : "Pregnant (0 = No, 1 = Yes)",
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.3833718244803695,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.3833718244803695,
         "min" : 0.0,
@@ -2173,7 +2342,7 @@
         "type" : "number",
         "clipHigh" : 3.0,
         "clipLow" : 0.0,
-        "default" : 0.279445727482679,
+        "default" : 0.0,
         "max" : 5.0,
         "mean" : 0.2702078521939954,
         "min" : 0.0,
@@ -2184,7 +2353,7 @@
         "type" : "number",
         "clipHigh" : 19855.333200000026,
         "clipLow" : 1.97,
-        "default" : 591.2052332563502,
+        "default" : 22.0,
         "max" : 30004.0,
         "mean" : 533.2876951501148,
         "min" : 1.3,
@@ -2195,7 +2364,7 @@
         "type" : "number",
         "clipHigh" : 3719.341600000004,
         "clipLow" : 1.99,
-        "default" : 219.66787297921536,
+        "default" : 1.99,
         "max" : 21084.21,
         "mean" : 147.80659815242447,
         "min" : 1.65,
@@ -2206,7 +2375,7 @@
         "type" : "number",
         "clipHigh" : 13.381600000000011,
         "clipLow" : 1.0,
-        "default" : 16.841404157043886,
+        "default" : 4.86,
         "max" : 5052.0,
         "mean" : 5.0305450346420315,
         "min" : 0.21,
@@ -2217,7 +2386,7 @@
         "type" : "number",
         "clipHigh" : 9.961200000000002,
         "clipLow" : 0.10960000000000002,
-        "default" : 7.406249422632796,
+        "default" : 2.34,
         "max" : 2018.0,
         "mean" : 2.756207852193995,
         "min" : 0.02,
@@ -2228,7 +2397,7 @@
         "type" : "number",
         "clipHigh" : 29.27538461560001,
         "clipLow" : 0.4352517986,
-        "default" : 6.904905321395386,
+        "default" : 2.160326087,
         "max" : 1372.826087,
         "mean" : 3.666489558480828,
         "min" : 0.002145688801,
@@ -2239,7 +2408,7 @@
         "type" : "number",
         "clipHigh" : 47.360000000000014,
         "clipLow" : 28.0,
-        "default" : 37.9838337182448,
+        "default" : 38.0,
         "max" : 48.0,
         "mean" : 37.990300230946886,
         "min" : 26.0,
@@ -2250,7 +2419,7 @@
         "type" : "number",
         "clipHigh" : 43.68000000000001,
         "clipLow" : 25.0,
-        "default" : 33.787528868360276,
+        "default" : 34.0,
         "max" : 46.0,
         "mean" : 33.786143187066976,
         "min" : 24.0,
@@ -2261,7 +2430,7 @@
         "type" : "number",
         "clipHigh" : 0.9736842105,
         "clipLow" : 0.78691729322,
-        "default" : 0.8909108507501146,
+        "default" : 0.8947368421,
         "max" : 0.9772727273,
         "mean" : 0.8910044235057728,
         "min" : 0.7555555556,
@@ -2272,7 +2441,7 @@
         "type" : "number",
         "clipHigh" : 16.673200000000005,
         "clipLow" : 0.27640000000000003,
-        "default" : 2.966806004618938,
+        "default" : 2.2,
         "max" : 65.0,
         "mean" : 2.8195265588914546,
         "min" : 0.04,
@@ -2283,18 +2452,18 @@
         "type" : "number",
         "clipHigh" : 24.99200000000003,
         "clipLow" : 0.2832,
-        "default" : 5.6309791666666635,
+        "default" : 3.8499999999999996,
         "max" : 66.0,
-        "mean" : 5.506120044264816,
+        "mean" : 5.5020069284064625,
         "min" : 0.1,
-        "std" : 5.099237695542389
+        "std" : 5.099853567652643
       }, {
         "key" : "prl",
         "label" : "PRL (ng/mL)",
         "type" : "number",
         "clipHigh" : 95.20680000000003,
         "clipLow" : 3.8612,
-        "default" : 24.306951501154735,
+        "default" : 21.14,
         "max" : 128.24,
         "mean" : 24.196304849884527,
         "min" : 0.4,
@@ -2305,7 +2474,7 @@
         "type" : "number",
         "clipHigh" : 73.22960000000003,
         "clipLow" : 9.264,
-        "default" : 43.23863972286374,
+        "default" : 26.3,
         "max" : 6014.66,
         "mean" : 29.47027482678986,
         "min" : 0.0,
@@ -2316,7 +2485,7 @@
         "type" : "number",
         "clipHigh" : 2.8920000000000163,
         "clipLow" : 0.15,
-        "default" : 0.6683510392609696,
+        "default" : 0.31,
         "max" : 85.0,
         "mean" : 0.41445496535796766,
         "min" : 0.047,
@@ -2327,7 +2496,7 @@
         "type" : "number",
         "clipHigh" : 139.36,
         "clipLow" : 72.0,
-        "default" : 99.5501154734411,
+        "default" : 98.0,
         "max" : 225.0,
         "mean" : 99.31408775981524,
         "min" : 60.0,
@@ -2338,7 +2507,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.3625866050808314,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.3625866050808314,
         "min" : 0.0,
@@ -2349,7 +2518,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.2517321016166282,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.2517321016166282,
         "min" : 0.0,
@@ -2360,7 +2529,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.30484988452655887,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.30484988452655887,
         "min" : 0.0,
@@ -2371,7 +2540,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.43648960739030024,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.43648960739030024,
         "min" : 0.0,
@@ -2382,7 +2551,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.5011547344110855,
+        "default" : 1.0,
         "max" : 1.0,
         "mean" : 0.5011547344110855,
         "min" : 0.0,
@@ -2393,7 +2562,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.5127020785219399,
+        "default" : 1.0,
         "max" : 1.0,
         "mean" : 0.5127020785219399,
         "min" : 0.0,
@@ -2404,7 +2573,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.2586605080831409,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.2586605080831409,
         "min" : 0.0,
@@ -2415,7 +2584,7 @@
         "type" : "number",
         "clipHigh" : 130.0,
         "clipLow" : 100.0,
-        "default" : 114.46189376443418,
+        "default" : 110.0,
         "max" : 140.0,
         "mean" : 114.6189376443418,
         "min" : 12.0,
@@ -2426,7 +2595,7 @@
         "type" : "number",
         "clipHigh" : 80.0,
         "clipLow" : 70.0,
-        "default" : 76.7621247113164,
+        "default" : 80.0,
         "max" : 100.0,
         "mean" : 76.88221709006929,
         "min" : 8.0,
@@ -2437,7 +2606,7 @@
         "type" : "number",
         "clipHigh" : 20.0,
         "clipLow" : 0.0,
-        "default" : 6.221709006928407,
+        "default" : 5.0,
         "max" : 22.0,
         "mean" : 6.210161662817552,
         "min" : 0.0,
@@ -2448,7 +2617,7 @@
         "type" : "number",
         "clipHigh" : 19.680000000000007,
         "clipLow" : 0.0,
-        "default" : 6.734411085450346,
+        "default" : 6.0,
         "max" : 20.0,
         "mean" : 6.730715935334872,
         "min" : 0.0,
@@ -2459,7 +2628,7 @@
         "type" : "number",
         "clipHigh" : 21.0,
         "clipLow" : 0.0,
-        "default" : 15.026096997690532,
+        "default" : 15.0,
         "max" : 24.0,
         "mean" : 15.016859122401849,
         "min" : 0.0,
@@ -2470,7 +2639,7 @@
         "type" : "number",
         "clipHigh" : 21.0,
         "clipLow" : 5.864,
-        "default" : 15.43688221709007,
+        "default" : 16.0,
         "max" : 24.0,
         "mean" : 15.457321016166283,
         "min" : 0.0,
@@ -2481,7 +2650,7 @@
         "type" : "number",
         "clipHigh" : 14.0,
         "clipLow" : 3.932,
-        "default" : 8.477413394919166,
+        "default" : 8.5,
         "max" : 18.0,
         "mean" : 8.475935334872975,
         "min" : 0.0,
@@ -2501,7 +2670,7 @@
         "type" : "number",
         "clipHigh" : 44.68000000000001,
         "clipLow" : 20.32,
-        "default" : 31.214780600461893,
+        "default" : 31.0,
         "max" : 48.0,
         "mean" : 31.20092378752887,
         "min" : 20.0,
@@ -2512,7 +2681,7 @@
         "type" : "number",
         "clipHigh" : 89.0,
         "clipLow" : 33.64,
-        "default" : 59.218475750577355,
+        "default" : 59.0,
         "max" : 108.0,
         "mean" : 59.18568129330253,
         "min" : 31.0,
@@ -2523,7 +2692,7 @@
         "type" : "number",
         "clipHigh" : 172.0,
         "clipLow" : 144.0,
-        "default" : 156.40423094688217,
+        "default" : 156.0,
         "max" : 180.0,
         "mean" : 156.40261431870664,
         "min" : 137.0,
@@ -2534,7 +2703,7 @@
         "type" : "number",
         "clipHigh" : 34.185865408000005,
         "clipLow" : 14.3744144944,
-        "default" : 24.17135089558892,
+        "default" : 24.00548697,
         "max" : 38.5393827,
         "mean" : 24.156032292013858,
         "min" : 12.41788175,
@@ -2545,7 +2714,7 @@
         "type" : "number",
         "clipHigh" : 17.0,
         "clipLow" : 11.0,
-        "default" : 13.81986143187067,
+        "default" : 15.0,
         "max" : 18.0,
         "mean" : 13.815242494226329,
         "min" : 11.0,
@@ -2556,7 +2725,7 @@
         "type" : "number",
         "clipHigh" : 80.0,
         "clipLow" : 70.0,
-        "default" : 73.21939953810623,
+        "default" : 72.0,
         "max" : 82.0,
         "mean" : 73.46189376443418,
         "min" : 13.0,
@@ -2567,7 +2736,7 @@
         "type" : "number",
         "clipHigh" : 24.0,
         "clipLow" : 16.0,
-        "default" : 19.290993071593533,
+        "default" : 18.0,
         "max" : 28.0,
         "mean" : 19.27713625866051,
         "min" : 16.0,
@@ -2578,7 +2747,7 @@
         "type" : "number",
         "clipHigh" : 13.8,
         "clipLow" : 9.432,
-        "default" : 11.158383371824488,
+        "default" : 11.0,
         "max" : 14.2,
         "mean" : 11.159907621247122,
         "min" : 8.5,
@@ -2589,7 +2758,7 @@
         "type" : "number",
         "clipHigh" : 4.0,
         "clipLow" : 2.0,
-        "default" : 2.561200923787529,
+        "default" : 2.0,
         "max" : 5.0,
         "mean" : 2.558891454965358,
         "min" : 2.0,
@@ -2600,7 +2769,7 @@
         "type" : "number",
         "clipHigh" : 10.680000000000007,
         "clipLow" : 2.0,
-        "default" : 4.919168591224018,
+        "default" : 5.0,
         "max" : 12.0,
         "mean" : 4.915473441108546,
         "min" : 0.0,
@@ -2611,18 +2780,18 @@
         "type" : "number",
         "clipHigh" : 21.360000000000014,
         "clipLow" : 1.0,
-        "default" : 7.390509259259259,
+        "default" : 7.0,
         "max" : 25.0,
-        "mean" : 7.371571614917458,
+        "mean" : 7.37066974595843,
         "min" : 0.0,
-        "std" : 4.464824840586237
+        "std" : 4.464860364376507
       }, {
         "key" : "pregnant",
         "label" : "Pregnant (0 = No, 1 = Yes)",
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.3833718244803695,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.3833718244803695,
         "min" : 0.0,
@@ -2633,7 +2802,7 @@
         "type" : "number",
         "clipHigh" : 3.0,
         "clipLow" : 0.0,
-        "default" : 0.279445727482679,
+        "default" : 0.0,
         "max" : 5.0,
         "mean" : 0.2702078521939954,
         "min" : 0.0,
@@ -2644,7 +2813,7 @@
         "type" : "number",
         "clipHigh" : 19855.333200000026,
         "clipLow" : 1.97,
-        "default" : 591.2052332563502,
+        "default" : 22.0,
         "max" : 30004.0,
         "mean" : 533.2876951501148,
         "min" : 1.3,
@@ -2655,7 +2824,7 @@
         "type" : "number",
         "clipHigh" : 3719.341600000004,
         "clipLow" : 1.99,
-        "default" : 219.66787297921536,
+        "default" : 1.99,
         "max" : 21084.21,
         "mean" : 147.80659815242447,
         "min" : 1.65,
@@ -2666,7 +2835,7 @@
         "type" : "number",
         "clipHigh" : 13.381600000000011,
         "clipLow" : 1.0,
-        "default" : 16.841404157043886,
+        "default" : 4.86,
         "max" : 5052.0,
         "mean" : 5.0305450346420315,
         "min" : 0.21,
@@ -2677,7 +2846,7 @@
         "type" : "number",
         "clipHigh" : 9.961200000000002,
         "clipLow" : 0.10960000000000002,
-        "default" : 7.406249422632796,
+        "default" : 2.34,
         "max" : 2018.0,
         "mean" : 2.756207852193995,
         "min" : 0.02,
@@ -2688,7 +2857,7 @@
         "type" : "number",
         "clipHigh" : 29.27538461560001,
         "clipLow" : 0.4352517986,
-        "default" : 6.904905321395386,
+        "default" : 2.160326087,
         "max" : 1372.826087,
         "mean" : 3.666489558480828,
         "min" : 0.002145688801,
@@ -2699,7 +2868,7 @@
         "type" : "number",
         "clipHigh" : 47.360000000000014,
         "clipLow" : 28.0,
-        "default" : 37.9838337182448,
+        "default" : 38.0,
         "max" : 48.0,
         "mean" : 37.990300230946886,
         "min" : 26.0,
@@ -2710,7 +2879,7 @@
         "type" : "number",
         "clipHigh" : 43.68000000000001,
         "clipLow" : 25.0,
-        "default" : 33.787528868360276,
+        "default" : 34.0,
         "max" : 46.0,
         "mean" : 33.786143187066976,
         "min" : 24.0,
@@ -2721,7 +2890,7 @@
         "type" : "number",
         "clipHigh" : 0.9736842105,
         "clipLow" : 0.78691729322,
-        "default" : 0.8909108507501146,
+        "default" : 0.8947368421,
         "max" : 0.9772727273,
         "mean" : 0.8910044235057728,
         "min" : 0.7555555556,
@@ -2732,7 +2901,7 @@
         "type" : "number",
         "clipHigh" : 16.673200000000005,
         "clipLow" : 0.27640000000000003,
-        "default" : 2.966806004618938,
+        "default" : 2.2,
         "max" : 65.0,
         "mean" : 2.8195265588914546,
         "min" : 0.04,
@@ -2743,18 +2912,18 @@
         "type" : "number",
         "clipHigh" : 24.99200000000003,
         "clipLow" : 0.2832,
-        "default" : 5.6309791666666635,
+        "default" : 3.8499999999999996,
         "max" : 66.0,
-        "mean" : 5.506120044264816,
+        "mean" : 5.5020069284064625,
         "min" : 0.1,
-        "std" : 5.099237695542389
+        "std" : 5.099853567652643
       }, {
         "key" : "prl",
         "label" : "PRL (ng/mL)",
         "type" : "number",
         "clipHigh" : 95.20680000000003,
         "clipLow" : 3.8612,
-        "default" : 24.306951501154735,
+        "default" : 21.14,
         "max" : 128.24,
         "mean" : 24.196304849884527,
         "min" : 0.4,
@@ -2765,7 +2934,7 @@
         "type" : "number",
         "clipHigh" : 73.22960000000003,
         "clipLow" : 9.264,
-        "default" : 43.23863972286374,
+        "default" : 26.3,
         "max" : 6014.66,
         "mean" : 29.47027482678986,
         "min" : 0.0,
@@ -2776,7 +2945,7 @@
         "type" : "number",
         "clipHigh" : 2.8920000000000163,
         "clipLow" : 0.15,
-        "default" : 0.6683510392609696,
+        "default" : 0.31,
         "max" : 85.0,
         "mean" : 0.41445496535796766,
         "min" : 0.047,
@@ -2787,7 +2956,7 @@
         "type" : "number",
         "clipHigh" : 139.36,
         "clipLow" : 72.0,
-        "default" : 99.5501154734411,
+        "default" : 98.0,
         "max" : 225.0,
         "mean" : 99.31408775981524,
         "min" : 60.0,
@@ -2798,7 +2967,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.3625866050808314,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.3625866050808314,
         "min" : 0.0,
@@ -2809,7 +2978,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.2517321016166282,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.2517321016166282,
         "min" : 0.0,
@@ -2820,7 +2989,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.30484988452655887,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.30484988452655887,
         "min" : 0.0,
@@ -2831,7 +3000,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.43648960739030024,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.43648960739030024,
         "min" : 0.0,
@@ -2842,7 +3011,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.5011547344110855,
+        "default" : 1.0,
         "max" : 1.0,
         "mean" : 0.5011547344110855,
         "min" : 0.0,
@@ -2853,7 +3022,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.5127020785219399,
+        "default" : 1.0,
         "max" : 1.0,
         "mean" : 0.5127020785219399,
         "min" : 0.0,
@@ -2864,7 +3033,7 @@
         "type" : "number",
         "clipHigh" : 1.0,
         "clipLow" : 0.0,
-        "default" : 0.2586605080831409,
+        "default" : 0.0,
         "max" : 1.0,
         "mean" : 0.2586605080831409,
         "min" : 0.0,
@@ -2875,7 +3044,7 @@
         "type" : "number",
         "clipHigh" : 130.0,
         "clipLow" : 100.0,
-        "default" : 114.46189376443418,
+        "default" : 110.0,
         "max" : 140.0,
         "mean" : 114.6189376443418,
         "min" : 12.0,
@@ -2886,7 +3055,7 @@
         "type" : "number",
         "clipHigh" : 80.0,
         "clipLow" : 70.0,
-        "default" : 76.7621247113164,
+        "default" : 80.0,
         "max" : 100.0,
         "mean" : 76.88221709006929,
         "min" : 8.0,
@@ -2897,7 +3066,7 @@
         "type" : "number",
         "clipHigh" : 20.0,
         "clipLow" : 0.0,
-        "default" : 6.221709006928407,
+        "default" : 5.0,
         "max" : 22.0,
         "mean" : 6.210161662817552,
         "min" : 0.0,
@@ -2908,7 +3077,7 @@
         "type" : "number",
         "clipHigh" : 19.680000000000007,
         "clipLow" : 0.0,
-        "default" : 6.734411085450346,
+        "default" : 6.0,
         "max" : 20.0,
         "mean" : 6.730715935334872,
         "min" : 0.0,
@@ -2919,7 +3088,7 @@
         "type" : "number",
         "clipHigh" : 21.0,
         "clipLow" : 0.0,
-        "default" : 15.026096997690532,
+        "default" : 15.0,
         "max" : 24.0,
         "mean" : 15.016859122401849,
         "min" : 0.0,
@@ -2930,7 +3099,7 @@
         "type" : "number",
         "clipHigh" : 21.0,
         "clipLow" : 5.864,
-        "default" : 15.43688221709007,
+        "default" : 16.0,
         "max" : 24.0,
         "mean" : 15.457321016166283,
         "min" : 0.0,
@@ -2941,7 +3110,7 @@
         "type" : "number",
         "clipHigh" : 14.0,
         "clipLow" : 3.932,
-        "default" : 8.477413394919166,
+        "default" : 8.5,
         "max" : 18.0,
         "mean" : 8.475935334872975,
         "min" : 0.0,
@@ -2953,29 +3122,30 @@
       "trainSize" : 433
     }
   },
+  "modelVersion" : "1.2.0",
   "models" : [ {
     "name" : "Random Forest",
-    "accuracy" : 0.8796296296296297,
-    "precision" : 0.9583333333333334,
-    "recall" : 0.6571428571428571,
-    "f1" : 0.7796610169491525,
-    "accuracyCiHigh" : 0.9351851851851852,
-    "accuracyCiLow" : 0.8055555555555556,
-    "brierScore" : 0.10169111113830366,
+    "accuracy" : 0.8888888888888888,
+    "precision" : 0.96,
+    "recall" : 0.6857142857142857,
+    "f1" : 0.7999999999999999,
+    "accuracyCiHigh" : 0.9444444444444444,
+    "accuracyCiLow" : 0.8148148148148148,
+    "brierScore" : 0.10224486164859702,
     "clipApplied" : true,
     "confusionMatrix" : {
-      "tp" : 23,
+      "tp" : 24,
       "fp" : 1,
-      "fn" : 12,
+      "fn" : 11,
       "tn" : 72
     },
-    "cvAccuracy" : 0.9099307159353349,
+    "cvAccuracy" : 0.9122401847575058,
     "featureSubset" : [ "age", "weightKg", "heightCm", "bmi", "bloodGroup", "pulseRate", "rr", "hb", "cycle", "cycleLength", "marriageYears", "pregnant", "abortions", "betaHcg1", "betaHcg2", "fsh", "lh", "fshLh", "hip", "waist", "waistHipRatio", "tsh", "amh", "prl", "vitD3", "prg", "rbs", "weightGain", "hairGrowth", "skinDarkening", "hairLoss", "pimples", "fastFood", "regularExercise", "bpSystolic", "bpDiastolic", "follicleL", "follicleR", "avgFollicleSizeL", "avgFollicleSizeR", "endometrium" ],
-    "hyperparameters" : "Random Forest [maxDepth=20, mtry=0, nodeSize=2, ntrees=500, subsample=0.8, features=41, clip=true, oversample=false]",
+    "hyperparameters" : "Random Forest [maxDepth=20, mtry=0, nodeSize=1, ntrees=300, subsample=1.0, features=41, clip=true, oversample=false]",
     "mode" : "full",
     "nFeatures" : 41,
     "oversample" : false,
-    "prAuc" : 0.8826841443350381,
+    "prAuc" : 0.8857385646099031,
     "rocAuc" : 0.9299412915851272,
     "rocCurve" : [ {
       "fpr" : 0.0,
@@ -3077,23 +3247,23 @@
       "fpr" : 0.0684931506849315,
       "tpr" : 0.7714285714285715
     }, {
+      "fpr" : 0.0684931506849315,
+      "tpr" : 0.8
+    }, {
       "fpr" : 0.0821917808219178,
-      "tpr" : 0.7714285714285715
+      "tpr" : 0.8
+    }, {
+      "fpr" : 0.0821917808219178,
+      "tpr" : 0.8285714285714286
     }, {
       "fpr" : 0.0958904109589041,
-      "tpr" : 0.7714285714285715
+      "tpr" : 0.8285714285714286
     }, {
       "fpr" : 0.1095890410958904,
-      "tpr" : 0.7714285714285715
-    }, {
-      "fpr" : 0.1095890410958904,
-      "tpr" : 0.8
+      "tpr" : 0.8285714285714286
     }, {
       "fpr" : 0.1232876712328767,
-      "tpr" : 0.8
-    }, {
-      "fpr" : 0.136986301369863,
-      "tpr" : 0.8
+      "tpr" : 0.8285714285714286
     }, {
       "fpr" : 0.136986301369863,
       "tpr" : 0.8285714285714286
@@ -3101,8 +3271,8 @@
       "fpr" : 0.1506849315068493,
       "tpr" : 0.8285714285714286
     }, {
-      "fpr" : 0.1643835616438356,
-      "tpr" : 0.8285714285714286
+      "fpr" : 0.1506849315068493,
+      "tpr" : 0.8571428571428571
     }, {
       "fpr" : 0.1643835616438356,
       "tpr" : 0.8571428571428571
@@ -3113,8 +3283,8 @@
       "fpr" : 0.1917808219178082,
       "tpr" : 0.8571428571428571
     }, {
-      "fpr" : 0.1917808219178082,
-      "tpr" : 0.8857142857142857
+      "fpr" : 0.2054794520547945,
+      "tpr" : 0.8571428571428571
     }, {
       "fpr" : 0.2054794520547945,
       "tpr" : 0.8857142857142857
@@ -3146,17 +3316,17 @@
       "fpr" : 0.3150684931506849,
       "tpr" : 0.9142857142857143
     }, {
-      "fpr" : 0.3150684931506849,
-      "tpr" : 0.9428571428571428
+      "fpr" : 0.3287671232876712,
+      "tpr" : 0.9142857142857143
     }, {
       "fpr" : 0.3287671232876712,
       "tpr" : 0.9428571428571428
-    }, {
-      "fpr" : 0.3287671232876712,
-      "tpr" : 0.9714285714285714
     }, {
       "fpr" : 0.3424657534246575,
-      "tpr" : 0.9714285714285714
+      "tpr" : 0.9428571428571428
+    }, {
+      "fpr" : 0.3561643835616438,
+      "tpr" : 0.9428571428571428
     }, {
       "fpr" : 0.3561643835616438,
       "tpr" : 0.9714285714285714
@@ -3215,17 +3385,17 @@
       "fpr" : 0.6027397260273972,
       "tpr" : 0.9714285714285714
     }, {
-      "fpr" : 0.6027397260273972,
-      "tpr" : 1.0
-    }, {
       "fpr" : 0.6164383561643836,
-      "tpr" : 1.0
+      "tpr" : 0.9714285714285714
     }, {
       "fpr" : 0.6301369863013698,
-      "tpr" : 1.0
+      "tpr" : 0.9714285714285714
     }, {
       "fpr" : 0.6438356164383562,
-      "tpr" : 1.0
+      "tpr" : 0.9714285714285714
+    }, {
+      "fpr" : 0.6575342465753424,
+      "tpr" : 0.9714285714285714
     }, {
       "fpr" : 0.6575342465753424,
       "tpr" : 1.0
@@ -3318,7 +3488,7 @@
     "f1" : 0.7812500000000001,
     "accuracyCiHigh" : 0.9259259259259259,
     "accuracyCiLow" : 0.8055555555555556,
-    "brierScore" : 0.107537037037037,
+    "brierScore" : 0.10767314814814812,
     "clipApplied" : true,
     "confusionMatrix" : {
       "tp" : 25,
@@ -3332,8 +3502,8 @@
     "mode" : "full",
     "nFeatures" : 41,
     "oversample" : false,
-    "prAuc" : 0.8477113487727882,
-    "rocAuc" : 0.9,
+    "prAuc" : 0.8472784483398879,
+    "rocAuc" : 0.8998043052837573,
     "rocCurve" : [ {
       "fpr" : 0.0,
       "tpr" : 0.0
@@ -3422,16 +3592,16 @@
       "fpr" : 0.136986301369863,
       "tpr" : 0.8285714285714286
     }, {
-      "fpr" : 0.1506849315068493,
-      "tpr" : 0.8285714285714286
-    }, {
       "fpr" : 0.1643835616438356,
       "tpr" : 0.8285714285714286
     }, {
-      "fpr" : 0.1917808219178082,
+      "fpr" : 0.1780821917808219,
       "tpr" : 0.8285714285714286
     }, {
       "fpr" : 0.1917808219178082,
+      "tpr" : 0.8285714285714286
+    }, {
+      "fpr" : 0.2054794520547945,
       "tpr" : 0.8571428571428571
     }, {
       "fpr" : 0.2191780821917808,
@@ -3440,7 +3610,7 @@
       "fpr" : 0.2328767123287671,
       "tpr" : 0.8571428571428571
     }, {
-      "fpr" : 0.273972602739726,
+      "fpr" : 0.2876712328767123,
       "tpr" : 0.8571428571428571
     }, {
       "fpr" : 0.3150684931506849,
@@ -3467,10 +3637,10 @@
       "fpr" : 0.4246575342465753,
       "tpr" : 0.9428571428571428
     }, {
-      "fpr" : 0.4657534246575342,
+      "fpr" : 0.4520547945205479,
       "tpr" : 0.9428571428571428
     }, {
-      "fpr" : 0.4794520547945205,
+      "fpr" : 0.4657534246575342,
       "tpr" : 0.9428571428571428
     }, {
       "fpr" : 0.5205479452054794,
@@ -3479,10 +3649,10 @@
       "fpr" : 0.547945205479452,
       "tpr" : 0.9714285714285714
     }, {
-      "fpr" : 0.5753424657534246,
+      "fpr" : 0.5616438356164384,
       "tpr" : 0.9714285714285714
     }, {
-      "fpr" : 0.6164383561643836,
+      "fpr" : 0.589041095890411,
       "tpr" : 0.9714285714285714
     }, {
       "fpr" : 0.6575342465753424,
@@ -3510,28 +3680,28 @@
     "threshold" : 0.5
   }, {
     "name" : "AdaBoost",
-    "accuracy" : 0.8611111111111112,
-    "precision" : 0.8125,
-    "recall" : 0.7428571428571429,
-    "f1" : 0.7761194029850748,
-    "accuracyCiHigh" : 0.9166666666666666,
-    "accuracyCiLow" : 0.7870370370370371,
-    "brierScore" : 0.1770575372593899,
-    "clipApplied" : false,
+    "accuracy" : 0.8703703703703703,
+    "precision" : 0.92,
+    "recall" : 0.6571428571428571,
+    "f1" : 0.7666666666666667,
+    "accuracyCiHigh" : 0.9259259259259259,
+    "accuracyCiLow" : 0.7962962962962963,
+    "brierScore" : 0.18101245190755633,
+    "clipApplied" : true,
     "confusionMatrix" : {
-      "tp" : 26,
-      "fp" : 6,
-      "fn" : 9,
-      "tn" : 67
+      "tp" : 23,
+      "fp" : 2,
+      "fn" : 12,
+      "tn" : 71
     },
-    "cvAccuracy" : 0.8914549653579676,
+    "cvAccuracy" : 0.8937644341801386,
     "featureSubset" : [ "age", "weightKg", "heightCm", "bmi", "bloodGroup", "pulseRate", "rr", "hb", "cycle", "cycleLength", "marriageYears", "pregnant", "abortions", "betaHcg1", "betaHcg2", "fsh", "lh", "fshLh", "hip", "waist", "waistHipRatio", "tsh", "amh", "prl", "vitD3", "prg", "rbs", "weightGain", "hairGrowth", "skinDarkening", "hairLoss", "pimples", "fastFood", "regularExercise", "bpSystolic", "bpDiastolic", "follicleL", "follicleR", "avgFollicleSizeL", "avgFollicleSizeR", "endometrium" ],
-    "hyperparameters" : "AdaBoost [maxDepth=2, maxNodes=2, nodeSize=1, ntrees=100, features=41, clip=false, oversample=false]",
+    "hyperparameters" : "AdaBoost [maxDepth=3, maxNodes=8, nodeSize=1, ntrees=300, features=41, clip=true, oversample=false]",
     "mode" : "full",
     "nFeatures" : 41,
     "oversample" : false,
-    "prAuc" : 0.8882568056754465,
-    "rocAuc" : 0.9279843444227006,
+    "prAuc" : 0.8687059510092702,
+    "rocAuc" : 0.9189823874755382,
     "rocCurve" : [ {
       "fpr" : 0.0,
       "tpr" : 0.0
@@ -3560,14 +3730,14 @@
       "fpr" : 0.0,
       "tpr" : 0.22857142857142856
     }, {
-      "fpr" : 0.0,
+      "fpr" : 0.0136986301369863,
+      "tpr" : 0.22857142857142856
+    }, {
+      "fpr" : 0.0136986301369863,
       "tpr" : 0.2571428571428571
     }, {
-      "fpr" : 0.0,
+      "fpr" : 0.0136986301369863,
       "tpr" : 0.2857142857142857
-    }, {
-      "fpr" : 0.0,
-      "tpr" : 0.3142857142857143
     }, {
       "fpr" : 0.0136986301369863,
       "tpr" : 0.3142857142857143
@@ -3599,35 +3769,35 @@
       "fpr" : 0.0136986301369863,
       "tpr" : 0.5714285714285714
     }, {
-      "fpr" : 0.0136986301369863,
+      "fpr" : 0.0273972602739726,
+      "tpr" : 0.5714285714285714
+    }, {
+      "fpr" : 0.0273972602739726,
       "tpr" : 0.6
     }, {
-      "fpr" : 0.0136986301369863,
+      "fpr" : 0.0273972602739726,
       "tpr" : 0.6285714285714286
     }, {
-      "fpr" : 0.0136986301369863,
+      "fpr" : 0.0273972602739726,
       "tpr" : 0.6571428571428571
     }, {
-      "fpr" : 0.0136986301369863,
-      "tpr" : 0.6857142857142857
-    }, {
-      "fpr" : 0.0136986301369863,
-      "tpr" : 0.7142857142857143
-    }, {
-      "fpr" : 0.0273972602739726,
-      "tpr" : 0.7142857142857143
-    }, {
-      "fpr" : 0.0273972602739726,
-      "tpr" : 0.7428571428571429
-    }, {
       "fpr" : 0.0410958904109589,
-      "tpr" : 0.7428571428571429
+      "tpr" : 0.6571428571428571
     }, {
       "fpr" : 0.0547945205479452,
-      "tpr" : 0.7428571428571429
+      "tpr" : 0.6571428571428571
+    }, {
+      "fpr" : 0.0547945205479452,
+      "tpr" : 0.6857142857142857
     }, {
       "fpr" : 0.0684931506849315,
-      "tpr" : 0.7428571428571429
+      "tpr" : 0.6857142857142857
+    }, {
+      "fpr" : 0.0684931506849315,
+      "tpr" : 0.7142857142857143
+    }, {
+      "fpr" : 0.0821917808219178,
+      "tpr" : 0.7142857142857143
     }, {
       "fpr" : 0.0821917808219178,
       "tpr" : 0.7428571428571429
@@ -3641,47 +3811,47 @@
       "fpr" : 0.0958904109589041,
       "tpr" : 0.8
     }, {
+      "fpr" : 0.0958904109589041,
+      "tpr" : 0.8285714285714286
+    }, {
+      "fpr" : 0.0958904109589041,
+      "tpr" : 0.8571428571428571
+    }, {
       "fpr" : 0.1095890410958904,
-      "tpr" : 0.8
+      "tpr" : 0.8571428571428571
     }, {
       "fpr" : 0.1232876712328767,
-      "tpr" : 0.8
+      "tpr" : 0.8571428571428571
     }, {
       "fpr" : 0.136986301369863,
-      "tpr" : 0.8
+      "tpr" : 0.8571428571428571
     }, {
       "fpr" : 0.1506849315068493,
-      "tpr" : 0.8
+      "tpr" : 0.8571428571428571
     }, {
       "fpr" : 0.1643835616438356,
-      "tpr" : 0.8
-    }, {
-      "fpr" : 0.1643835616438356,
-      "tpr" : 0.8285714285714286
-    }, {
-      "fpr" : 0.1780821917808219,
-      "tpr" : 0.8285714285714286
+      "tpr" : 0.8571428571428571
     }, {
       "fpr" : 0.1780821917808219,
       "tpr" : 0.8571428571428571
     }, {
       "fpr" : 0.1917808219178082,
       "tpr" : 0.8571428571428571
-    }, {
-      "fpr" : 0.1917808219178082,
-      "tpr" : 0.8857142857142857
     }, {
       "fpr" : 0.2054794520547945,
-      "tpr" : 0.8857142857142857
+      "tpr" : 0.8571428571428571
     }, {
       "fpr" : 0.2191780821917808,
-      "tpr" : 0.8857142857142857
+      "tpr" : 0.8571428571428571
+    }, {
+      "fpr" : 0.2328767123287671,
+      "tpr" : 0.8571428571428571
     }, {
       "fpr" : 0.2328767123287671,
       "tpr" : 0.8857142857142857
     }, {
-      "fpr" : 0.2328767123287671,
-      "tpr" : 0.9142857142857143
+      "fpr" : 0.2465753424657534,
+      "tpr" : 0.8857142857142857
     }, {
       "fpr" : 0.2465753424657534,
       "tpr" : 0.9142857142857143
@@ -3713,35 +3883,35 @@
       "fpr" : 0.3698630136986301,
       "tpr" : 0.9142857142857143
     }, {
-      "fpr" : 0.3698630136986301,
-      "tpr" : 0.9428571428571428
-    }, {
       "fpr" : 0.3835616438356164,
-      "tpr" : 0.9428571428571428
+      "tpr" : 0.9142857142857143
     }, {
       "fpr" : 0.3972602739726027,
-      "tpr" : 0.9428571428571428
+      "tpr" : 0.9142857142857143
     }, {
       "fpr" : 0.410958904109589,
-      "tpr" : 0.9428571428571428
+      "tpr" : 0.9142857142857143
     }, {
       "fpr" : 0.4246575342465753,
-      "tpr" : 0.9428571428571428
+      "tpr" : 0.9142857142857143
     }, {
       "fpr" : 0.4383561643835616,
-      "tpr" : 0.9428571428571428
+      "tpr" : 0.9142857142857143
     }, {
       "fpr" : 0.4520547945205479,
-      "tpr" : 0.9428571428571428
+      "tpr" : 0.9142857142857143
     }, {
       "fpr" : 0.4657534246575342,
-      "tpr" : 0.9428571428571428
-    }, {
-      "fpr" : 0.4657534246575342,
-      "tpr" : 0.9714285714285714
+      "tpr" : 0.9142857142857143
     }, {
       "fpr" : 0.4794520547945205,
-      "tpr" : 0.9714285714285714
+      "tpr" : 0.9142857142857143
+    }, {
+      "fpr" : 0.4931506849315068,
+      "tpr" : 0.9142857142857143
+    }, {
+      "fpr" : 0.4931506849315068,
+      "tpr" : 0.9428571428571428
     }, {
       "fpr" : 0.4931506849315068,
       "tpr" : 0.9714285714285714
@@ -3755,11 +3925,11 @@
       "fpr" : 0.5342465753424658,
       "tpr" : 0.9714285714285714
     }, {
-      "fpr" : 0.5342465753424658,
-      "tpr" : 1.0
-    }, {
       "fpr" : 0.547945205479452,
-      "tpr" : 1.0
+      "tpr" : 0.9714285714285714
+    }, {
+      "fpr" : 0.5616438356164384,
+      "tpr" : 0.9714285714285714
     }, {
       "fpr" : 0.5616438356164384,
       "tpr" : 1.0
@@ -3868,18 +4038,18 @@
   }, {
     "name" : "Gradient Boosting",
     "accuracy" : 0.8796296296296297,
-    "precision" : 0.84375,
-    "recall" : 0.7714285714285715,
-    "f1" : 0.8059701492537314,
+    "precision" : 0.8235294117647058,
+    "recall" : 0.8,
+    "f1" : 0.8115942028985507,
     "accuracyCiHigh" : 0.9351851851851852,
     "accuracyCiLow" : 0.8148148148148148,
-    "brierScore" : 0.09081720786266809,
+    "brierScore" : 0.09108544372595359,
     "clipApplied" : true,
     "confusionMatrix" : {
-      "tp" : 27,
-      "fp" : 5,
-      "fn" : 8,
-      "tn" : 68
+      "tp" : 28,
+      "fp" : 6,
+      "fn" : 7,
+      "tn" : 67
     },
     "cvAccuracy" : 0.9122401847575058,
     "featureSubset" : [ "age", "weightKg", "heightCm", "bmi", "bloodGroup", "pulseRate", "rr", "hb", "cycle", "cycleLength", "marriageYears", "pregnant", "abortions", "betaHcg1", "betaHcg2", "fsh", "lh", "fshLh", "hip", "waist", "waistHipRatio", "tsh", "amh", "prl", "vitD3", "prg", "rbs", "weightGain", "hairGrowth", "skinDarkening", "hairLoss", "pimples", "fastFood", "regularExercise", "bpSystolic", "bpDiastolic", "follicleL", "follicleR", "avgFollicleSizeL", "avgFollicleSizeR", "endometrium" ],
@@ -3887,8 +4057,8 @@
     "mode" : "full",
     "nFeatures" : 41,
     "oversample" : false,
-    "prAuc" : 0.905471591341148,
-    "rocAuc" : 0.9448140900195695,
+    "prAuc" : 0.905249412302255,
+    "rocAuc" : 0.9428571428571428,
     "rocCurve" : [ {
       "fpr" : 0.0,
       "tpr" : 0.0
@@ -3932,8 +4102,8 @@
       "fpr" : 0.0,
       "tpr" : 0.37142857142857144
     }, {
-      "fpr" : 0.0136986301369863,
-      "tpr" : 0.37142857142857144
+      "fpr" : 0.0,
+      "tpr" : 0.4
     }, {
       "fpr" : 0.0136986301369863,
       "tpr" : 0.4
@@ -3962,11 +4132,11 @@
       "fpr" : 0.0136986301369863,
       "tpr" : 0.6285714285714286
     }, {
-      "fpr" : 0.0136986301369863,
-      "tpr" : 0.6571428571428571
+      "fpr" : 0.0273972602739726,
+      "tpr" : 0.6285714285714286
     }, {
-      "fpr" : 0.0136986301369863,
-      "tpr" : 0.6857142857142857
+      "fpr" : 0.0273972602739726,
+      "tpr" : 0.6571428571428571
     }, {
       "fpr" : 0.0273972602739726,
       "tpr" : 0.6857142857142857
@@ -3986,11 +4156,11 @@
       "fpr" : 0.0547945205479452,
       "tpr" : 0.7714285714285715
     }, {
-      "fpr" : 0.0684931506849315,
-      "tpr" : 0.7714285714285715
+      "fpr" : 0.0547945205479452,
+      "tpr" : 0.8
     }, {
-      "fpr" : 0.0821917808219178,
-      "tpr" : 0.7714285714285715
+      "fpr" : 0.0684931506849315,
+      "tpr" : 0.8
     }, {
       "fpr" : 0.0821917808219178,
       "tpr" : 0.8
@@ -4007,8 +4177,8 @@
       "fpr" : 0.1232876712328767,
       "tpr" : 0.8285714285714286
     }, {
-      "fpr" : 0.136986301369863,
-      "tpr" : 0.8285714285714286
+      "fpr" : 0.1232876712328767,
+      "tpr" : 0.8571428571428571
     }, {
       "fpr" : 0.136986301369863,
       "tpr" : 0.8571428571428571
@@ -4028,8 +4198,8 @@
       "fpr" : 0.2054794520547945,
       "tpr" : 0.8571428571428571
     }, {
-      "fpr" : 0.2191780821917808,
-      "tpr" : 0.8571428571428571
+      "fpr" : 0.2054794520547945,
+      "tpr" : 0.8857142857142857
     }, {
       "fpr" : 0.2191780821917808,
       "tpr" : 0.8857142857142857
@@ -4046,32 +4216,32 @@
       "fpr" : 0.2602739726027397,
       "tpr" : 0.9142857142857143
     }, {
-      "fpr" : 0.2602739726027397,
-      "tpr" : 0.9428571428571428
+      "fpr" : 0.273972602739726,
+      "tpr" : 0.9142857142857143
     }, {
       "fpr" : 0.273972602739726,
       "tpr" : 0.9428571428571428
-    }, {
-      "fpr" : 0.273972602739726,
-      "tpr" : 0.9714285714285714
     }, {
       "fpr" : 0.2876712328767123,
-      "tpr" : 0.9714285714285714
+      "tpr" : 0.9428571428571428
     }, {
       "fpr" : 0.3013698630136986,
-      "tpr" : 0.9714285714285714
+      "tpr" : 0.9428571428571428
     }, {
       "fpr" : 0.3150684931506849,
-      "tpr" : 0.9714285714285714
+      "tpr" : 0.9428571428571428
     }, {
       "fpr" : 0.3287671232876712,
-      "tpr" : 0.9714285714285714
+      "tpr" : 0.9428571428571428
     }, {
       "fpr" : 0.3424657534246575,
-      "tpr" : 0.9714285714285714
+      "tpr" : 0.9428571428571428
     }, {
       "fpr" : 0.3561643835616438,
-      "tpr" : 0.9714285714285714
+      "tpr" : 0.9428571428571428
+    }, {
+      "fpr" : 0.3698630136986301,
+      "tpr" : 0.9428571428571428
     }, {
       "fpr" : 0.3698630136986301,
       "tpr" : 0.9714285714285714
@@ -4225,18 +4395,18 @@
   }, {
     "name" : "Soft Voting Ensemble",
     "accuracy" : 0.8888888888888888,
-    "precision" : 0.9259259259259259,
-    "recall" : 0.7142857142857143,
-    "f1" : 0.8064516129032259,
+    "precision" : 0.896551724137931,
+    "recall" : 0.7428571428571429,
+    "f1" : 0.8125,
     "accuracyCiHigh" : 0.9444444444444444,
     "accuracyCiLow" : 0.8240740740740741,
-    "brierScore" : 0.0993960842173558,
+    "brierScore" : 0.10058753378465388,
     "clipApplied" : true,
     "confusionMatrix" : {
-      "tp" : 25,
-      "fp" : 2,
-      "fn" : 10,
-      "tn" : 71
+      "tp" : 26,
+      "fp" : 3,
+      "fn" : 9,
+      "tn" : 70
     },
     "cvAccuracy" : 0.9191685912240185,
     "featureSubset" : [ "age", "weightKg", "heightCm", "bmi", "bloodGroup", "pulseRate", "rr", "hb", "cycle", "cycleLength", "marriageYears", "pregnant", "abortions", "betaHcg1", "betaHcg2", "fsh", "lh", "fshLh", "hip", "waist", "waistHipRatio", "tsh", "amh", "prl", "vitD3", "prg", "rbs", "weightGain", "hairGrowth", "skinDarkening", "hairLoss", "pimples", "fastFood", "regularExercise", "bpSystolic", "bpDiastolic", "follicleL", "follicleR", "avgFollicleSizeL", "avgFollicleSizeR", "endometrium" ],
@@ -4244,7 +4414,7 @@
     "mode" : "full",
     "nFeatures" : 41,
     "oversample" : false,
-    "prAuc" : 0.8816948895372013,
+    "prAuc" : 0.8835826485590033,
     "rocAuc" : 0.9272015655577299,
     "rocCurve" : [ {
       "fpr" : 0.0,
@@ -4271,8 +4441,8 @@
       "fpr" : 0.0,
       "tpr" : 0.2
     }, {
-      "fpr" : 0.0136986301369863,
-      "tpr" : 0.2
+      "fpr" : 0.0,
+      "tpr" : 0.22857142857142856
     }, {
       "fpr" : 0.0136986301369863,
       "tpr" : 0.22857142857142856
@@ -4319,8 +4489,8 @@
       "fpr" : 0.0136986301369863,
       "tpr" : 0.6285714285714286
     }, {
-      "fpr" : 0.0136986301369863,
-      "tpr" : 0.6571428571428571
+      "fpr" : 0.0273972602739726,
+      "tpr" : 0.6285714285714286
     }, {
       "fpr" : 0.0273972602739726,
       "tpr" : 0.6571428571428571
@@ -4337,20 +4507,20 @@
       "fpr" : 0.0410958904109589,
       "tpr" : 0.7428571428571429
     }, {
-      "fpr" : 0.0410958904109589,
-      "tpr" : 0.7714285714285715
+      "fpr" : 0.0547945205479452,
+      "tpr" : 0.7428571428571429
     }, {
       "fpr" : 0.0547945205479452,
       "tpr" : 0.7714285714285715
     }, {
       "fpr" : 0.0547945205479452,
       "tpr" : 0.8
+    }, {
+      "fpr" : 0.0547945205479452,
+      "tpr" : 0.8285714285714286
     }, {
       "fpr" : 0.0684931506849315,
-      "tpr" : 0.8
-    }, {
-      "fpr" : 0.0821917808219178,
-      "tpr" : 0.8
+      "tpr" : 0.8285714285714286
     }, {
       "fpr" : 0.0821917808219178,
       "tpr" : 0.8285714285714286
@@ -4406,11 +4576,11 @@
       "fpr" : 0.2876712328767123,
       "tpr" : 0.8857142857142857
     }, {
-      "fpr" : 0.2876712328767123,
-      "tpr" : 0.9142857142857143
-    }, {
       "fpr" : 0.3013698630136986,
-      "tpr" : 0.9142857142857143
+      "tpr" : 0.8857142857142857
+    }, {
+      "fpr" : 0.3150684931506849,
+      "tpr" : 0.8857142857142857
     }, {
       "fpr" : 0.3150684931506849,
       "tpr" : 0.9142857142857143
@@ -4424,17 +4594,17 @@
       "fpr" : 0.3561643835616438,
       "tpr" : 0.9142857142857143
     }, {
-      "fpr" : 0.3561643835616438,
-      "tpr" : 0.9428571428571428
-    }, {
       "fpr" : 0.3698630136986301,
-      "tpr" : 0.9428571428571428
+      "tpr" : 0.9142857142857143
     }, {
       "fpr" : 0.3835616438356164,
-      "tpr" : 0.9428571428571428
+      "tpr" : 0.9142857142857143
     }, {
       "fpr" : 0.3972602739726027,
-      "tpr" : 0.9428571428571428
+      "tpr" : 0.9142857142857143
+    }, {
+      "fpr" : 0.410958904109589,
+      "tpr" : 0.9142857142857143
     }, {
       "fpr" : 0.410958904109589,
       "tpr" : 0.9428571428571428
@@ -4445,8 +4615,8 @@
       "fpr" : 0.4383561643835616,
       "tpr" : 0.9428571428571428
     }, {
-      "fpr" : 0.4520547945205479,
-      "tpr" : 0.9428571428571428
+      "fpr" : 0.4383561643835616,
+      "tpr" : 0.9714285714285714
     }, {
       "fpr" : 0.4520547945205479,
       "tpr" : 0.9714285714285714
@@ -4481,17 +4651,17 @@
       "fpr" : 0.589041095890411,
       "tpr" : 0.9714285714285714
     }, {
+      "fpr" : 0.589041095890411,
+      "tpr" : 1.0
+    }, {
       "fpr" : 0.6027397260273972,
-      "tpr" : 0.9714285714285714
+      "tpr" : 1.0
     }, {
       "fpr" : 0.6164383561643836,
-      "tpr" : 0.9714285714285714
+      "tpr" : 1.0
     }, {
       "fpr" : 0.6301369863013698,
-      "tpr" : 0.9714285714285714
-    }, {
-      "fpr" : 0.6438356164383562,
-      "tpr" : 0.9714285714285714
+      "tpr" : 1.0
     }, {
       "fpr" : 0.6438356164383562,
       "tpr" : 1.0
@@ -4578,22 +4748,22 @@
       "tpr" : 1.0
     } ],
     "screening" : false,
-    "threshold" : 0.55
+    "threshold" : 0.5
   }, {
     "name" : "Gradient Boosting (Screening)",
-    "accuracy" : 0.8240740740740741,
-    "precision" : 0.7222222222222222,
-    "recall" : 0.7428571428571429,
-    "f1" : 0.732394366197183,
-    "accuracyCiHigh" : 0.8888888888888888,
-    "accuracyCiLow" : 0.75,
+    "accuracy" : 0.6481481481481481,
+    "precision" : 0.4782608695652174,
+    "recall" : 0.9428571428571428,
+    "f1" : 0.6346153846153846,
+    "accuracyCiHigh" : 0.7407407407407407,
+    "accuracyCiLow" : 0.5555555555555556,
     "brierScore" : 0.13838219771348337,
     "clipApplied" : true,
     "confusionMatrix" : {
-      "tp" : 26,
-      "fp" : 10,
-      "fn" : 9,
-      "tn" : 63
+      "tp" : 33,
+      "fp" : 36,
+      "fn" : 2,
+      "tn" : 37
     },
     "cvAccuracy" : 0.8267898383371824,
     "featureSubset" : [ "age", "weightKg", "heightCm", "bmi", "pulseRate", "rr", "cycle", "cycleLength", "marriageYears", "pregnant", "abortions", "hip", "waist", "waistHipRatio", "weightGain", "hairGrowth", "skinDarkening", "hairLoss", "pimples", "fastFood", "regularExercise", "bpSystolic", "bpDiastolic" ],
@@ -4935,7 +5105,148 @@
       "tpr" : 1.0
     } ],
     "screening" : true,
-    "threshold" : 0.30000000000000004
+    "threshold" : 0.08
+  } ],
+  "repeatedCv" : [ {
+    "accuracyMean" : 0.889648798521257,
+    "accuracySd" : 0.006581491161171461,
+    "f1Mean" : 0.817316708481395,
+    "f1Sd" : 0.011703750556155234,
+    "folds" : 5,
+    "model" : "Random Forest",
+    "precisionMean" : 0.891345393267369,
+    "precisionSd" : 0.011596541933927666,
+    "recallMean" : 0.7548022598870057,
+    "recallSd" : 0.01646084623985852,
+    "repeats" : 10,
+    "rocAucMean" : 0.9493512137579934,
+    "rocAucSd" : 0.0030640982548647173
+  }, {
+    "accuracyMean" : 0.8794824399260628,
+    "accuracySd" : 0.009927361213122776,
+    "f1Mean" : 0.8108301623707448,
+    "f1Sd" : 0.015016778742746602,
+    "folds" : 5,
+    "model" : "Bagging",
+    "precisionMean" : 0.8336461215252126,
+    "precisionSd" : 0.018028204276628372,
+    "recallMean" : 0.7892655367231638,
+    "recallSd" : 0.013061047747193768,
+    "repeats" : 10,
+    "rocAucMean" : 0.9238390140932514,
+    "rocAucSd" : 0.004250970753980163
+  }, {
+    "accuracyMean" : 0.8802218114602589,
+    "accuracySd" : 0.00866113783896764,
+    "f1Mean" : 0.8094745793538598,
+    "f1Sd" : 0.014437573937053017,
+    "folds" : 5,
+    "model" : "AdaBoost",
+    "precisionMean" : 0.8437935561519858,
+    "precisionSd" : 0.014030783924877409,
+    "recallMean" : 0.7779661016949152,
+    "recallSd" : 0.018073209964610315,
+    "repeats" : 10,
+    "rocAucMean" : 0.937317625876948,
+    "rocAucSd" : 0.0055230004098326116
+  }, {
+    "accuracyMean" : 0.8966728280961183,
+    "accuracySd" : 0.006774771168159451,
+    "f1Mean" : 0.8374176335174776,
+    "f1Sd" : 0.011136403292851631,
+    "folds" : 5,
+    "model" : "Gradient Boosting",
+    "precisionMean" : 0.8629357074862423,
+    "precisionSd" : 0.012901079364818435,
+    "recallMean" : 0.8135593220338982,
+    "recallSd" : 0.016200235907801556,
+    "repeats" : 10,
+    "rocAucMean" : 0.9502328180294282,
+    "rocAucSd" : 0.003443206066796899
+  }, {
+    "accuracyMean" : 0.9018484288354898,
+    "accuracySd" : 0.006830577474758146,
+    "f1Mean" : 0.8429204519930729,
+    "f1Sd" : 0.0112241431035991,
+    "folds" : 5,
+    "model" : "Soft Voting Ensemble",
+    "precisionMean" : 0.8846868869822666,
+    "precisionSd" : 0.013653433653706838,
+    "recallMean" : 0.8050847457627119,
+    "recallSd" : 0.015124650098125247,
+    "repeats" : 10,
+    "rocAucMean" : 0.9489818091513007,
+    "rocAucSd" : 0.0024486250488845946
+  }, {
+    "accuracyMean" : 0.8325323475046211,
+    "accuracySd" : 0.005242648770470161,
+    "f1Mean" : 0.7269385052096063,
+    "f1Sd" : 0.008133498589121681,
+    "folds" : 5,
+    "model" : "Gradient Boosting (Screening)",
+    "precisionMean" : 0.7792894535132371,
+    "precisionSd" : 0.01302978504392898,
+    "recallMean" : 0.6813559322033897,
+    "recallSd" : 0.011362036255366005,
+    "repeats" : 10,
+    "rocAucMean" : 0.8679316446265599,
+    "rocAucSd" : 0.006161886553412712
+  }, {
+    "accuracyMean" : 0.8828096118299446,
+    "accuracySd" : 0.006111939256999261,
+    "f1Mean" : 0.8169440376658192,
+    "f1Sd" : 0.010048401233952122,
+    "folds" : 5,
+    "model" : "Logistic Regression",
+    "precisionMean" : 0.8353792747982384,
+    "precisionSd" : 0.010674690491598627,
+    "recallMean" : 0.7994350282485876,
+    "recallSd" : 0.01440400992540334,
+    "repeats" : 10,
+    "rocAucMean" : 0.9328537281927112,
+    "rocAucSd" : 0.0041079216539117
+  }, {
+    "accuracyMean" : 0.8312384473197781,
+    "accuracySd" : 0.012138172400167365,
+    "f1Mean" : 0.730426777482425,
+    "f1Sd" : 0.018769310956521505,
+    "folds" : 5,
+    "model" : "Decision Tree",
+    "precisionMean" : 0.7655946445705093,
+    "precisionSd" : 0.025399014445250966,
+    "recallMean" : 0.698870056497175,
+    "recallSd" : 0.023072562178217362,
+    "repeats" : 10,
+    "rocAucMean" : 0.8723210405413795,
+    "rocAucSd" : 0.015495228694063579
+  }, {
+    "accuracyMean" : 0.8772643253234751,
+    "accuracySd" : 0.010499770008202486,
+    "f1Mean" : 0.8090349604767159,
+    "f1Sd" : 0.01504760382667664,
+    "folds" : 5,
+    "model" : "SVM (Linear)",
+    "precisionMean" : 0.8249999766328144,
+    "precisionSd" : 0.026333082358830237,
+    "recallMean" : 0.7943502824858757,
+    "recallSd" : 0.020318047396250358,
+    "repeats" : 10,
+    "rocAucMean" : 0.8559663500341467,
+    "rocAucSd" : 0.010738735918819825
+  }, {
+    "accuracyMean" : 0.8589648798521257,
+    "accuracySd" : 0.0076980890691980336,
+    "f1Mean" : 0.7618372922279358,
+    "f1Sd" : 0.014540709423330907,
+    "folds" : 5,
+    "model" : "KNN",
+    "precisionMean" : 0.8509388971342334,
+    "precisionSd" : 0.013301302828092117,
+    "recallMean" : 0.6898305084745763,
+    "recallSd" : 0.01947127235489693,
+    "repeats" : 10,
+    "rocAucMean" : 0.8892515676413982,
+    "rocAucSd" : 0.005033941076419661
   } ],
   "screeningImportance" : {
     "age" : 52.369179536624735,
@@ -4946,7 +5257,7 @@
     "rr" : 19.193132083329306,
     "cycle" : 128.88154361505588,
     "cycleLength" : 135.706993042015,
-    "marriageYears" : 46.512101065646505,
+    "marriageYears" : 46.51210106564648,
     "pregnant" : 0.0,
     "abortions" : 10.040031668060035,
     "hip" : 15.517587460400428,
@@ -4963,37 +5274,37 @@
     "bpDiastolic" : 1.8470045408765752
   },
   "screeningThreshold" : {
-    "chosenOn" : "train 5-fold CV out-of-fold probabilities, maximising F1 (ties broken toward higher recall); never tuned on the test set",
+    "chosenOn" : "train 5-fold CV out-of-fold probabilities, recall target >= 90% (highest threshold meeting the target, ties toward higher precision); never tuned on the test set",
     "defaultThresholdTestAccuracy" : 0.8055555555555556,
     "defaultThresholdTestF1" : 0.6769230769230768,
     "defaultThresholdTestPrecision" : 0.7333333333333333,
     "defaultThresholdTestRecall" : 0.6285714285714286,
     "model" : "Gradient Boosting (Screening)",
-    "oofF1" : 0.7290322580645161,
-    "oofPrecision" : 0.6726190476190477,
-    "oofRecall" : 0.795774647887324,
-    "testAccuracy" : 0.8240740740740741,
-    "testF1" : 0.732394366197183,
-    "testPrecision" : 0.7222222222222222,
-    "testRecall" : 0.7428571428571429,
-    "threshold" : 0.30000000000000004
+    "oofF1" : 0.6109785202863962,
+    "oofPrecision" : 0.4620938628158845,
+    "oofRecall" : 0.9014084507042254,
+    "testAccuracy" : 0.6481481481481481,
+    "testF1" : 0.6346153846153846,
+    "testPrecision" : 0.4782608695652174,
+    "testRecall" : 0.9428571428571428,
+    "threshold" : 0.08
   },
   "seed" : 42,
   "testSize" : 108,
   "trainSize" : 433,
-  "tuningMethod" : "5-fold stratified CV on the TRAIN split only (seed 42). Hyperparameter grid + feature-subset (RF importance re-ranked inside each CV fold, on the fold's training rows only) + clipping on/off compared by CV. Test split evaluated exactly once, after all tuning. Preprocessing re-fitted inside every CV fold. Baselines and the screening model use the same split and the same train-only CV protocol. Decision thresholds are tuned on train CV out-of-fold probabilities only, never on the test set.",
+  "tuningMethod" : "5-fold stratified CV on the TRAIN split only (seed 42). Hyperparameter grid + feature-subset (RF importance re-ranked inside each CV fold, on the fold's training rows only) + clipping on/off compared by CV. Test split evaluated once per model, after all tuning. Preprocessing re-fitted inside every CV fold. Baselines and the screening model use the same split and the same train-only CV protocol. Decision thresholds are tuned on train CV out-of-fold probabilities only, never on the test set. The screening threshold uses a recall target (>=90% out-of-fold recall). Repeated CV (10x5, all rows), McNemar tests, ablation and calibration reuse the fixed tuned hyperparameters; they are extra analyses of the same run, not new tuning.",
   "verifiedRowsUsed" : 0,
   "votingAccuracyCiHigh" : 0.9444444444444444,
   "votingAccuracyCiLow" : 0.8240740740740741,
-  "votingBrierScore" : 0.0993960842173558,
+  "votingBrierScore" : 0.10058753378465388,
   "votingConfusionMatrix" : {
-    "tp" : 25,
-    "fp" : 2,
-    "fn" : 10,
-    "tn" : 71
+    "tp" : 26,
+    "fp" : 3,
+    "fn" : 9,
+    "tn" : 70
   },
   "votingCvAccuracy" : 0.9191685912240185,
-  "votingPrAuc" : 0.8816948895372013,
+  "votingPrAuc" : 0.8835826485590033,
   "votingRocAuc" : 0.9272015655577299,
   "votingRocCurve" : [ {
     "fpr" : 0.0,
@@ -5020,8 +5331,8 @@
     "fpr" : 0.0,
     "tpr" : 0.2
   }, {
-    "fpr" : 0.0136986301369863,
-    "tpr" : 0.2
+    "fpr" : 0.0,
+    "tpr" : 0.22857142857142856
   }, {
     "fpr" : 0.0136986301369863,
     "tpr" : 0.22857142857142856
@@ -5068,8 +5379,8 @@
     "fpr" : 0.0136986301369863,
     "tpr" : 0.6285714285714286
   }, {
-    "fpr" : 0.0136986301369863,
-    "tpr" : 0.6571428571428571
+    "fpr" : 0.0273972602739726,
+    "tpr" : 0.6285714285714286
   }, {
     "fpr" : 0.0273972602739726,
     "tpr" : 0.6571428571428571
@@ -5086,20 +5397,20 @@
     "fpr" : 0.0410958904109589,
     "tpr" : 0.7428571428571429
   }, {
-    "fpr" : 0.0410958904109589,
-    "tpr" : 0.7714285714285715
+    "fpr" : 0.0547945205479452,
+    "tpr" : 0.7428571428571429
   }, {
     "fpr" : 0.0547945205479452,
     "tpr" : 0.7714285714285715
   }, {
     "fpr" : 0.0547945205479452,
     "tpr" : 0.8
+  }, {
+    "fpr" : 0.0547945205479452,
+    "tpr" : 0.8285714285714286
   }, {
     "fpr" : 0.0684931506849315,
-    "tpr" : 0.8
-  }, {
-    "fpr" : 0.0821917808219178,
-    "tpr" : 0.8
+    "tpr" : 0.8285714285714286
   }, {
     "fpr" : 0.0821917808219178,
     "tpr" : 0.8285714285714286
@@ -5155,11 +5466,11 @@
     "fpr" : 0.2876712328767123,
     "tpr" : 0.8857142857142857
   }, {
-    "fpr" : 0.2876712328767123,
-    "tpr" : 0.9142857142857143
-  }, {
     "fpr" : 0.3013698630136986,
-    "tpr" : 0.9142857142857143
+    "tpr" : 0.8857142857142857
+  }, {
+    "fpr" : 0.3150684931506849,
+    "tpr" : 0.8857142857142857
   }, {
     "fpr" : 0.3150684931506849,
     "tpr" : 0.9142857142857143
@@ -5173,17 +5484,17 @@
     "fpr" : 0.3561643835616438,
     "tpr" : 0.9142857142857143
   }, {
-    "fpr" : 0.3561643835616438,
-    "tpr" : 0.9428571428571428
-  }, {
     "fpr" : 0.3698630136986301,
-    "tpr" : 0.9428571428571428
+    "tpr" : 0.9142857142857143
   }, {
     "fpr" : 0.3835616438356164,
-    "tpr" : 0.9428571428571428
+    "tpr" : 0.9142857142857143
   }, {
     "fpr" : 0.3972602739726027,
-    "tpr" : 0.9428571428571428
+    "tpr" : 0.9142857142857143
+  }, {
+    "fpr" : 0.410958904109589,
+    "tpr" : 0.9142857142857143
   }, {
     "fpr" : 0.410958904109589,
     "tpr" : 0.9428571428571428
@@ -5194,8 +5505,8 @@
     "fpr" : 0.4383561643835616,
     "tpr" : 0.9428571428571428
   }, {
-    "fpr" : 0.4520547945205479,
-    "tpr" : 0.9428571428571428
+    "fpr" : 0.4383561643835616,
+    "tpr" : 0.9714285714285714
   }, {
     "fpr" : 0.4520547945205479,
     "tpr" : 0.9714285714285714
@@ -5230,17 +5541,17 @@
     "fpr" : 0.589041095890411,
     "tpr" : 0.9714285714285714
   }, {
+    "fpr" : 0.589041095890411,
+    "tpr" : 1.0
+  }, {
     "fpr" : 0.6027397260273972,
-    "tpr" : 0.9714285714285714
+    "tpr" : 1.0
   }, {
     "fpr" : 0.6164383561643836,
-    "tpr" : 0.9714285714285714
+    "tpr" : 1.0
   }, {
     "fpr" : 0.6301369863013698,
-    "tpr" : 0.9714285714285714
-  }, {
-    "fpr" : 0.6438356164383562,
-    "tpr" : 0.9714285714285714
+    "tpr" : 1.0
   }, {
     "fpr" : 0.6438356164383562,
     "tpr" : 1.0
