@@ -21,9 +21,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  * in-memory counter per IP per one-minute window, no Redis, no library.
  * Other endpoints are not limited (health/models/metrics are read-only and
  * cheap; history/retrain already need the admin key). A limited request
- * gets 429 with a JSON error, not a stack trace. The window map only grows
- * by one entry per distinct IP, and stale windows are replaced (not kept)
- * when their minute passes, so it cannot grow without bound from old IPs.
+ * gets 429 with a JSON error, not a stack trace.
+ *
+ * <p>Size bound: the map holds at most one entry per distinct IP seen in
+ * the current minute — windows from earlier minutes are evicted on the
+ * first request of a new minute (see {@link #evictStaleWindows}), so it
+ * cannot keep one entry per distinct IP forever. Within a single minute
+ * the map can still grow by one entry per distinct IP that calls the
+ * endpoint; that is inherent to an in-memory per-IP limiter with no
+ * external store.</p>
  */
 @Component
 public class PredictRateLimitFilter implements Filter {
@@ -35,6 +41,35 @@ public class PredictRateLimitFilter implements Filter {
 
     private final ConcurrentHashMap<String, Window> windows = new ConcurrentHashMap<>();
 
+    /** Minute of the last stale-window sweep (-1 = never swept). */
+    private volatile long lastSweepMinute = -1;
+
+    /**
+     * Client IP: the first entry of X-Forwarded-For when present, else the
+     * direct remote address. The header is trusted only because this
+     * deployment sits behind the project's own nginx (frontend container),
+     * which sets it; a client reaching the backend directly cannot spoof a
+     * shared limit — the worst case is its own IP being limited.
+     */
+    private static String clientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",", 2)[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    /**
+     * Drops windows from earlier minutes, at most once per minute. Runs on
+     * the request path, so entries only linger while no request arrives.
+     */
+    private void evictStaleWindows(long minute) {
+        if (minute != lastSweepMinute) {
+            lastSweepMinute = minute;
+            windows.entrySet().removeIf(e -> e.getValue().windowStartMinute() < minute);
+        }
+    }
+
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
@@ -43,7 +78,8 @@ public class PredictRateLimitFilter implements Filter {
                 && "POST".equalsIgnoreCase(httpRequest.getMethod())
                 && httpRequest.getRequestURI().endsWith("/api/predict")) {
             long minute = System.currentTimeMillis() / 60_000L;
-            String ip = httpRequest.getRemoteAddr();
+            evictStaleWindows(minute);
+            String ip = clientIp(httpRequest);
             Window window = windows.compute(ip, (key, old) ->
                     (old == null || old.windowStartMinute() != minute)
                             ? new Window(minute, new AtomicInteger(0))

@@ -289,20 +289,28 @@ connect — predictions are the one exception: see below).
 
 1. Install MySQL Server 8.x and start it (Ubuntu:
    `sudo apt-get install -y mysql-server && sudo service mysql start`).
-2. Set a root password (or create a dedicated user) — the app never
-   hard-codes one:
+2. Create a dedicated database user for the app (the app never connects
+   as root, and the password is never hard-coded — set it in the
+   environment, step 3). MySQL 8's default auth asks the driver for a
+   public key on first connect; the JDBC URL below includes
+   `allowPublicKeyRetrieval=true` so the driver can fetch it:
    ```sql
-   ALTER USER 'root'@'localhost' IDENTIFIED BY 'your-password';
+   CREATE USER 'pcod_app'@'localhost' IDENTIFIED BY 'your-password';
+   GRANT SELECT, INSERT, UPDATE, DELETE ON pcod_db.* TO 'pcod_app'@'localhost';
+   FLUSH PRIVILEGES;
    ```
+   (The root password itself is only needed for MySQL admin work, e.g.
+   `ALTER USER 'root'@'localhost' IDENTIFIED BY 'your-password';`.)
 3. Set the environment variables (or edit `application.properties`):
    ```bash
-   export MYSQL_URL='jdbc:mysql://localhost:3306/pcod_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC'
-   export MYSQL_USERNAME=root
+   export MYSQL_URL='jdbc:mysql://localhost:3306/pcod_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true'
+   export MYSQL_USERNAME=pcod_app
    export MYSQL_PASSWORD='your-password'
    ```
-   Defaults when unset: URL as above, username `root`, empty password.
-   The database `pcod_db` is created automatically on first connect
-   (`createDatabaseIfNotExist=true`).
+   Fallback defaults when unset (`application.properties`): URL as above,
+   username `root`, empty password — so set `MYSQL_USERNAME=pcod_app`
+   explicitly. The database `pcod_db` is created automatically on first
+   connect (`createDatabaseIfNotExist=true`).
 4. The table is created automatically on startup from
    `src/main/resources/schema.sql` (`CREATE TABLE IF NOT EXISTS
    prediction_records ...`). `spring.jpa.hibernate.ddl-auto=none` — the
@@ -488,7 +496,11 @@ Verified on the laptop (Temurin JDK 25, MySQL 8.0.41): `mvn clean compile` passe
   MYSQL_ROOT_PASSWORD in .env}`); there is no default password. MySQL's
   port **3306 is not published to the host** — the backend reaches MySQL
   over the Compose network; host access needs
-  `docker exec -it pcod-mysql mysql -uroot -p`.
+  `docker exec -it pcod-mysql mysql -uroot -p`. The app itself connects
+  as a dedicated user `pcod_app` (created automatically by the MySQL
+  image on **first init only** — on an existing `mysql-data` volume
+  create it manually with the SQL in "Database (MySQL)"); its password
+  comes from `MYSQL_APP_PASSWORD` — **required**, no default.
 - `backend`: builds `./backend` (multi-stage Maven build; the trained
   models are baked into the jar), port 8080, `MYSQL_URL` pointing at host
   `mysql`, `ADMIN_KEY` from the environment (**required** —
@@ -504,9 +516,10 @@ Verified on the laptop (Temurin JDK 25, MySQL 8.0.41): `mvn clean compile` passe
   to `http://localhost:8080` — `frontend/vite.config.js` reads
   `VITE_BACKEND_URL` with that default, so local dev is unchanged.
 
-Set `MYSQL_ROOT_PASSWORD` and `ADMIN_KEY` in a `.env` file next to
-`docker-compose.yml` (or in the shell) before starting — both are required
-and the stack will not start without them. Stop with
+Set `MYSQL_ROOT_PASSWORD`, `MYSQL_APP_PASSWORD` and `ADMIN_KEY` in a
+`.env` file next to `docker-compose.yml` (or in the shell) before
+starting — all three are required and the stack will not start without
+them. Stop with
 `docker compose down` (add `-v` to delete the MySQL data volume; the
 `pcod-resources` volume is kept unless removed explicitly, so retrained
 models survive a `down`). Then

@@ -12,6 +12,7 @@ import smile.data.Tuple;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputFilter;
 import java.io.ObjectInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -65,6 +66,24 @@ public class ModelStore {
     private final ObjectMapper mapper = new ObjectMapper();
 
     /**
+     * Deserialization allowlist for model files: only the model classes the
+     * trainer writes (Smile models + this project's BaggingClassifier) and
+     * JDK base classes may be deserialized — arrays match by element type,
+     * so no separate array pattern is needed. Anything else is rejected
+     * (fail-closed, via the trailing {@code !*}), so a tampered model file
+     * cannot instantiate an unexpected class.
+     */
+    private static final ObjectInputFilter MODEL_FILTER = ObjectInputFilter.Config.createFilter(
+            "com.pcod.ml.BaggingClassifier;smile.**;java.base/*;!*;maxarray=1000000;maxdepth=200");
+
+    /** ObjectInputStream guarded by {@link #MODEL_FILTER}. */
+    private static ObjectInputStream filteredObjectInputStream(InputStream is) throws IOException {
+        ObjectInputStream ois = new ObjectInputStream(is);
+        ois.setObjectInputFilter(MODEL_FILTER);
+        return ois;
+    }
+
+    /**
      * One immutable, fully-loaded set of artefacts. Swapped atomically:
      * readers take the reference once and use it consistently, so a
      * prediction never mixes metrics from one training run with models
@@ -113,7 +132,7 @@ public class ModelStore {
         Map<String, Object> loaded = new LinkedHashMap<>();
         for (Map.Entry<String, String> e : TrainingService.MODEL_FILES.entrySet()) {
             try (InputStream is = getClass().getResourceAsStream("/models/" + e.getValue());
-                 ObjectInputStream ois = new ObjectInputStream(is)) {
+                 ObjectInputStream ois = filteredObjectInputStream(is)) {
                 loaded.put(e.getKey(), ois.readObject());
             } catch (ClassNotFoundException ex) {
                 throw new IOException("Cannot deserialise model " + e.getValue(), ex);
@@ -130,7 +149,7 @@ public class ModelStore {
         for (Map.Entry<String, String> e : TrainingService.MODEL_FILES.entrySet()) {
             Path f = dir.resolve("models").resolve(e.getValue());
             try (InputStream is = Files.newInputStream(f);
-                 ObjectInputStream ois = new ObjectInputStream(is)) {
+                 ObjectInputStream ois = filteredObjectInputStream(is)) {
                 loaded.put(e.getKey(), ois.readObject());
             } catch (ClassNotFoundException ex) {
                 throw new IOException("Cannot deserialise model " + f, ex);
@@ -151,7 +170,7 @@ public class ModelStore {
                         + "until the trainer runs again.", classpathResource);
                 return;
             }
-            try (ObjectInputStream ois = new ObjectInputStream(is)) {
+            try (ObjectInputStream ois = filteredObjectInputStream(is)) {
                 loaded.put(TrainingService.SCREENING_MODEL, ois.readObject());
             }
         } catch (ClassNotFoundException e) {

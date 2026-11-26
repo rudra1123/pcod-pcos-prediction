@@ -3,7 +3,7 @@
 # metrics.json are baked into the jar at build time, so the container does
 # NOT retrain on startup. The dataset CSV is mounted read-only at
 # /app/data for POST /api/retrain (see docker-compose.yml).
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /build
 COPY pom.xml .
 COPY src ./src
@@ -11,7 +11,7 @@ COPY src ./src
 # build time (the machine building the image needs internet).
 RUN mvn -q package -DskipTests
 
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:25-jre
 WORKDIR /app
 COPY --from=build /build/target/pcod-prediction-backend-1.0.0.jar app.jar
 EXPOSE 8080

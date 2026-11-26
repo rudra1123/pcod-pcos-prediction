@@ -16,9 +16,10 @@
 # they survive container recreation — the backend loads them from that
 # directory on the next start instead of the jar's baked-in models.
 #
-# Secrets: MYSQL_ROOT_PASSWORD and ADMIN_KEY are REQUIRED — set them in a
-# .env file next to this file (or in the shell) before starting. There are
-# no silent defaults: compose refuses to start without them. MySQL's port
+# Secrets: MYSQL_ROOT_PASSWORD, MYSQL_APP_PASSWORD and ADMIN_KEY are
+# REQUIRED — set them in a .env file next to this file (or in the shell)
+# before starting. There are no silent defaults: compose refuses to start
+# without them. MySQL's port
 # 3306 is NOT published to the host (the backend reaches MySQL over the
 # compose network); for direct host access use
 # `docker exec -it pcod-mysql mysql -uroot -p`.
@@ -30,6 +31,12 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
       MYSQL_DATABASE: pcod_db
+      # Dedicated app user, created automatically on FIRST init only (an
+      # existing mysql-data volume keeps its old users — create pcod_app
+      # manually there, see backend/README.md). The app never connects as
+      # root; root is used only by the healthcheck below.
+      MYSQL_USER: ${MYSQL_APP_USER:-pcod_app}
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD:?set MYSQL_APP_PASSWORD in .env}
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
@@ -44,9 +51,12 @@ services:
     container_name: pcod-backend
     environment:
       # The backend reaches MySQL as service "mysql" inside this network.
-      MYSQL_URL: jdbc:mysql://mysql:3306/pcod_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
-      MYSQL_USERNAME: root
-      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      # MySQL 8's default auth asks the driver for a public key on first
+      # connect; allowPublicKeyRetrieval=true lets the driver fetch it
+      # (same fix as the laptop's standalone MySQL).
+      MYSQL_URL: jdbc:mysql://mysql:3306/pcod_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      MYSQL_USERNAME: ${MYSQL_APP_USER:-pcod_app}
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD:?set MYSQL_APP_PASSWORD in .env}
       # Admin key for the protected endpoints (X-Admin-Key header: retrain,
       # prediction history, verified outcomes). REQUIRED — when it is empty
       # those endpoints refuse every request (fail-closed).
