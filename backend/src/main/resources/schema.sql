@@ -3,7 +3,9 @@
 -- Hibernate does NOT manage this schema (ddl-auto=none); this file is the
 -- single source of truth for the table. Idempotent: safe to re-run.
 -- The runtime database is MySQL 8.x. (The JPA repository test uses H2,
--- which accepts the same DDL.)
+-- which accepts the same DDL.) TIMESTAMP (not DATETIME): H2 2.3, bundled
+-- with Spring Boot 4.1, no longer accepts DATETIME, while MySQL accepts
+-- TIMESTAMP for both columns.
 CREATE TABLE IF NOT EXISTS prediction_records (
     id               BIGINT       NOT NULL AUTO_INCREMENT,
     features_json    TEXT         NOT NULL,
@@ -13,9 +15,9 @@ CREATE TABLE IF NOT EXISTS prediction_records (
     probability      DOUBLE       NOT NULL,
     confidence       DOUBLE       NOT NULL,
     model            VARCHAR(64)  NOT NULL,
-    created_at       DATETIME     NOT NULL,
+    created_at       TIMESTAMP    NOT NULL,
     verified_outcome INT          NULL,
-    verified_at      DATETIME     NULL,
+    verified_at      TIMESTAMP    NULL,
     PRIMARY KEY (id),
     INDEX idx_prediction_records_created_at (created_at)
 );
