@@ -334,14 +334,29 @@ export default function App() {
   // goes blank because the backend is down.
   useEffect(() => {
     let cancelled = false
+    let healthTimer = null
+    let healthTries = 0
 
     async function checkHealth() {
       try {
         const res = await fetch(`${API_BASE}/api/health`)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        if (!cancelled) setBackendStatus('online')
+        if (cancelled) return
+        setBackendStatus('online')
+        // Backend just came up (a one-click run opens the page before the
+        // backend finishes starting) — load the live data now.
+        loadFeatures()
+        loadModels()
+        loadMetrics()
       } catch {
-        if (!cancelled) setBackendStatus('offline')
+        if (cancelled) return
+        setBackendStatus('offline')
+        // Retry while the backend is still starting (one-click run):
+        // every 3s, up to 20 tries (~60s).
+        healthTries += 1
+        if (healthTries < 20) {
+          healthTimer = setTimeout(checkHealth, 3000)
+        }
       }
     }
 
@@ -426,6 +441,7 @@ export default function App() {
     loadMetrics()
     return () => {
       cancelled = true
+      if (healthTimer) clearTimeout(healthTimer)
     }
   }, [])
 
