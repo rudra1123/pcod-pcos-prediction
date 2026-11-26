@@ -23,7 +23,7 @@ const N_FEATURES = 41
 const REQUIRED_FIELDS = ['age', 'bmi', 'cycle', 'cycleLength', 'weightGain', 'hairGrowth', 'skinDarkening', 'hairLoss', 'pimples', 'fastFood', 'regularExercise']
 
 // Warn (do not block) when this many fields were imputed: the result then
-// rests mostly on training-mean values, not on the patient's own data.
+// rests mostly on training-median values, not on the patient's own data.
 const HIGH_IMPUTATION = 21
 
 function pct(value) {
@@ -298,7 +298,7 @@ export default function App() {
   // Optional patient details (name + ID). Shown on the result card and the
   // printout, sent with the predict request and stored with the history
   // record — never sent to the model.
-  const [patientName, setPatientName] = useState('Sample Patient 2')
+  const [patientName, setPatientName] = useState('')
   const [patientId, setPatientId] = useState('')
   const [submittedPatient, setSubmittedPatient] = useState(null)
   const [backendStatus, setBackendStatus] = useState('checking') // checking | online | offline
@@ -507,7 +507,7 @@ export default function App() {
   function loadSample(sample) {
     setValues({ ...sample.values })
     setLoadedSample(sample.name)
-    setPatientName(sample === SAMPLE_PCOS ? 'Sample Patient 2' : 'Sample Patient 1')
+    setPatientName('') // never pre-filled: a stored name must be one the user typed
     setPatientId('')
     setSubmittedPatient(null)
     setResult(null)
@@ -519,7 +519,7 @@ export default function App() {
 
   function resetForm() {
     setValues(defaultsFromFeatures(features))
-    setLoadedSample('Dataset-average defaults')
+    setLoadedSample('Dataset-median defaults')
     setPatientName('')
     setPatientId('')
     setSubmittedPatient(null)
@@ -585,7 +585,7 @@ export default function App() {
     }
     setFieldErrors({})
 
-    // 3) Send: blank fields go as null so the backend mean-imputes them
+    // 3) Send: blank fields go as null so the backend median-imputes them
     // (and, once that backend change is live, counts them in imputedCount).
     const payload = {}
     const imputedKeys = []
@@ -788,7 +788,7 @@ export default function App() {
 
   // Imputed count: backend's imputedCount when live; otherwise the count of
   // fields left blank in this browser (those were sent as null and the
-  // backend mean-imputes them). Never invented — the source is labelled.
+  // backend median-imputes them). Never invented — the source is labelled.
   const backendImputed =
     result?.imputedCount ?? result?.imputed ?? result?.imputedFieldsCount ?? null
   const imputedFromList = Array.isArray(result?.imputedFields)
@@ -888,7 +888,7 @@ export default function App() {
           <p className="muted">
             Required fields: <strong>{REQUIRED_FIELDS.map((k) => labelOf(features, k)).join(', ')}</strong>.
             Other fields may be left blank — they are filled with the training
-            average (mean imputation) and counted in the result.
+            median (median imputation) and counted in the result.
             Every number shows its unit and valid range; values outside the
             range are rejected before anything is sent.
           </p>
@@ -919,7 +919,7 @@ export default function App() {
                     data-field="patientName"
                     value={patientName}
                     onChange={(e) => setPatientName(e.target.value)}
-                    placeholder="e.g. Sample Patient 2"
+                    placeholder="e.g. Patient A"
                     maxLength={100}
                   />
                   <span className="range">Optional — shown on the result and printout, saved with the record.</span>
@@ -1067,7 +1067,7 @@ export default function App() {
                 )}
                 <div className="result-head">
                   <span className="result-eyebrow">Screening result</span>
-                  <h3>{isPcos ? 'PCOS Detected' : 'No PCOS Detected'}</h3>
+                  <h3>{isPcos ? 'High risk \u2014 refer for testing' : 'Low risk'}</h3>
                   <p className="result-label">
                     {result.label ? `Model output: ${result.label}` : ''}
                   </p>
@@ -1086,6 +1086,29 @@ export default function App() {
                     ? ` (confidence ${confidencePct})`
                     : ''}
                 </p>
+              )}
+              {typeof result.threshold === 'number' && typeof result.probability === 'number' && (
+                <div
+                  className="prob-gauge"
+                  role="img"
+                  aria-label={`Probability ${probabilityPct}, decision threshold ${pct(result.threshold)}`}
+                >
+                  <div className="prob-gauge-track">
+                    <div
+                      className="prob-gauge-fill"
+                      style={{ width: `${Math.max(0, Math.min(100, result.probability * 100))}%` }}
+                    />
+                    <div
+                      className="prob-gauge-threshold"
+                      style={{ left: `${Math.max(0, Math.min(100, result.threshold * 100))}%` }}
+                    />
+                  </div>
+                  <div className="prob-gauge-labels">
+                    <span>0%</span>
+                    <span>Decision threshold {pct(result.threshold)}</span>
+                    <span>100%</span>
+                  </div>
+                </div>
               )}
               <p className="result-model">
                 Model: <strong>{result.model || '—'}</strong>
@@ -1109,8 +1132,8 @@ export default function App() {
                 {imputedCount} of {N_FEATURES} fields were imputed
                 <span className="muted"> ({imputedSource}).</span>
                 {imputedCount === 0
-                  ? ' All values were entered, so no training-mean filling was needed.'
-                  : ' Missing values were filled with the training average.'}
+                  ? ' All values were entered, so no training-median filling was needed.'
+                  : ' Missing values were filled with the training median.'}
               </p>
               {result.warning && (
                 <p className="result-warning" role="alert">
@@ -1120,7 +1143,7 @@ export default function App() {
               {!result.warning && imputedCount >= HIGH_IMPUTATION && (
                 <p className="result-warning" role="alert">
                   ⚠ More than half the fields were imputed — this result rests
-                  mostly on average values, not on the patient&apos;s own data.
+                  mostly on typical values, not on the patient&apos;s own data.
                   Treat it with extra caution and consult a doctor.
                 </p>
               )}
@@ -1356,7 +1379,7 @@ export default function App() {
                     <td>{r.id}</td>
                     <td>{r.patientName || '—'}{r.patientId ? ` (${r.patientId})` : ''}</td>
                     <td>{r.createdAt ? new Date(r.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}</td>
-                    <td>{r.label || (r.prediction === 1 ? 'PCOS Detected' : 'No PCOS Detected')}</td>
+                    <td>{r.label || (r.prediction === 1 ? 'High risk \u2014 refer for testing' : 'Low risk')}</td>
                     <td>{pct(r.probability) ?? '—'}</td>
                     <td>{r.model || '—'}</td>
                     <td>{Array.isArray(r.imputedFields) ? r.imputedFields.length : '—'}</td>
@@ -1409,7 +1432,7 @@ export default function App() {
           <p>Team: Priyansh Kr. Yadav, Rudra Pratap Singh, Rajneesh Pal | Guide: Mrs. Rashi Chaudhary</p>
           <p>Date: {resultDateStr}</p>
           <hr />
-          <h2>{isPcos ? 'PCOS Detected' : 'No PCOS Detected'}</h2>
+          <h2>{isPcos ? 'High risk \u2014 refer for testing' : 'Low risk'}</h2>
           {result.label && <p>Model output: {result.label}</p>}
           {probabilityPct && <p>Probability: {probabilityPct}{confidencePct && confidencePct !== probabilityPct ? ` (confidence ${confidencePct})` : ''}</p>}
           <p>
@@ -1424,7 +1447,7 @@ export default function App() {
           {result.warning && <p>Warning: {result.warning}</p>}
           <p>
             {imputedCount} of {N_FEATURES} fields were imputed ({imputedSource}).
-            Missing values were filled with the training average.
+            Missing values were filled with the training median.
           </p>
           <h2>Patient summary (inputs)</h2>
           {submittedPatient && (submittedPatient.name || submittedPatient.id) ? (
@@ -1448,7 +1471,7 @@ export default function App() {
                     <td>{f.label}</td>
                     <td>{wasImputed ? '—' : fmtNum(sent)}</td>
                     <td>{f.unit || '—'}</td>
-                    <td>{wasImputed ? 'Yes (training mean)' : 'No'}</td>
+                    <td>{wasImputed ? 'Yes (training median)' : 'No'}</td>
                   </tr>
                 )
               })}

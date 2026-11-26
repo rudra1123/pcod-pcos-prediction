@@ -30,12 +30,12 @@ See `backend/README.md` for the API, method and test details, and `frontend/READ
 ## Dataset
 
 - **Source:** Kaggle dataset "Polycystic Ovary Syndrome (PCOS)" by Prasoon Kottarathil — https://www.kaggle.com/datasets/prasoonkottarathil/polycystic-ovary-syndrome-pcos (data from 10 hospitals in Kerala, India). File used: `PCOS_data_without_infertility.xlsx`, sheet `Full_new`.
-- **541 patients × 45 columns.** Target `PCOS (Y/N)`: 0 = no PCOS (364, 67.3%), 1 = PCOS (177, 32.7%). After dropping 2 ID columns and 1 junk column, **41 input features**. Only 2 cells are genuinely missing (mean-imputed). Full column list: `data/SCHEMA.md`.
+- **541 patients × 45 columns.** Target `PCOS (Y/N)`: 0 = no PCOS (364, 67.3%), 1 = PCOS (177, 32.7%). After dropping 2 ID columns and 1 junk column, **41 input features**. Only 2 cells are genuinely missing (median-imputed). Full column list: `data/SCHEMA.md`.
 - **Larger datasets:** a search across Kaggle, UCI, GitHub, IEEE DataPort, Zenodo and PhysioNet found no genuine larger real-patient PCOS dataset. The 2,000-row and 2,539-row Kaggle files are augmented copies of the same 541 patients, so they were not used — merging them would leak duplicates across train/test. Details: `data/LARGE_DATASET.md`.
 
 ## Results (held-out test set, n = 108: 73 no-PCOS / 35 PCOS)
 
-Stratified 80/20 split, seed 42 (train 433 / test 108). Preprocessing was fitted on the training set only (mean imputation → 1st/99th-percentile clipping → standardisation, re-fitted per CV fold). Hyperparameters and thresholds were picked on 5-fold train-only cross-validation; the test set was evaluated once. Full details (ROC-AUC, PR-AUC, Brier score, confusion matrices, bootstrap 95% CI, thresholds): `backend/src/main/resources/metrics.json` and `backend/src/main/resources/models/MODEL_CARD.md`.
+Stratified 80/20 split, seed 42 (train 433 / test 108). Preprocessing was fitted on the training set only (median imputation → 1st/99th-percentile clipping → standardisation, re-fitted per CV fold). Hyperparameters and thresholds were picked on 5-fold train-only cross-validation; the test set was evaluated once. Full details (ROC-AUC, PR-AUC, Brier score, confusion matrices, bootstrap 95% CI, thresholds): `backend/src/main/resources/metrics.json` and `backend/src/main/resources/models/MODEL_CARD.md`.
 
 | Model | Accuracy | Precision | Recall | F1 | ROC-AUC | TP/FP/FN/TN | 95% CI |
 |---|---|---|---|---|---|---|---|
@@ -98,7 +98,7 @@ Swagger UI: http://localhost:8080/swagger-ui.html
 | `GET /api/features` | The 41 features (`key, label, min, max, default, type, screening, required`) |
 | `GET /api/models` | All models with measured metrics, confusion matrices, ROC curves, thresholds |
 | `GET /api/models/{name}/importance` | Top feature importances (Random Forest / Gradient Boosting / screening) |
-| `POST /api/predict[?mode=full\|screening]` | Predict. 11 non-invasive fields are required (age, bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise); missing any → HTTP 400 listing them. Other missing fields are mean-imputed and listed in `imputedFields` / `imputedCount`. `confidence` is the probability of the predicted class. Optional `patientName` / `patientId` in the body are stored with the history record (never model inputs). Empty `{}` → 400. |
+| `POST /api/predict[?mode=full\|screening]` | Predict. 11 non-invasive fields are required (age, bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise); missing any → HTTP 400 listing them. Other missing fields are median-imputed and listed in `imputedFields` / `imputedCount`. Values outside a feature's plausible range → HTTP 400 (they are rejected, not silently clipped). POST /api/predict is rate-limited to 120 requests/minute per IP. `confidence` is the probability of the predicted class. Optional `patientName` / `patientId` in the body are stored with the history record (never model inputs). Empty `{}` → 400. |
 | `GET /api/predictions?limit=N` | Prediction history, latest first (needs MySQL + `X-Admin-Key` header; 401 without/wrong key, 503 if `ADMIN_KEY` is unset) |
 | `GET /api/predictions/{id}` | One saved prediction (needs MySQL + `X-Admin-Key`) |
 | `PATCH /api/predictions/{id}/outcome` | Set a doctor-verified outcome (`{"verifiedOutcome": 0\|1}`) — retraining uses only verified rows with no imputed fields. Needs the `X-Admin-Key` header. |
@@ -114,7 +114,7 @@ curl -X POST http://localhost:8080/api/predict -H 'Content-Type: application/jso
 Response (verified live):
 
 ```json
-{"prediction":1,"label":"PCOS Detected","probability":0.8453,"confidence":0.8453,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.55,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
+{"prediction":1,"label":"High risk — refer for testing","probability":0.8453,"confidence":0.8453,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.55,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
 ```
 
 Screening mode (`?mode=screening`) on the same patient returns `0` (probability 0.1033 < threshold 0.30) — its non-invasive profile is mild and the case is only visible via follicle counts / AMH. That is the trade-off of screening.
@@ -128,7 +128,7 @@ cd frontend && npm run build   # 0 errors
 
 ## Privacy
 
-Prediction records are stored only in the local MySQL database (`prediction_records`, with a nullable doctor-verified `verified_outcome`). No patient-identifying information is stored. Any real deployment would need patient consent, anonymisation, and compliance with India's DPDP Act 2023 — see `backend/README.md`.
+Prediction records are stored only in the local MySQL database (`prediction_records`, with a nullable doctor-verified `verified_outcome`). The form collects an optional patient name and ID — they are stored only with the history record, never sent to the model and never used in training; leave them blank and nothing identifying is stored. Each record also carries the model version that made the prediction, so a retrain is auditable. Any real deployment would need patient consent, anonymisation, and compliance with India's DPDP Act 2023 — see `backend/README.md`.
 
 ## Sources
 

@@ -247,7 +247,7 @@ public class ModelStore {
 
     /**
      * Confidence = probability of the PREDICTED class. With a tuned
-     * threshold below 0.5 (screening: 0.25), max(p, 1-p) would report the
+     * threshold below 0.5 (screening, e.g. 0.30), max(p, 1-p) would report the
      * probability of the class NOT predicted (e.g. p = 0.30 predicts PCOS
      * but max() returns 70%, the No-PCOS side). This is the fix for that.
      */
@@ -257,7 +257,7 @@ public class ModelStore {
 
     /**
      * Predicts with the deployed (full) model. {@code raw} holds the 41 raw-scale
-     * feature values (NaN = missing -> training mean). Applies the same
+     * feature values (NaN = missing -> training median). Applies the same
      * clip + standardisation as training, then the saved model, and decides
      * with the model's TUNED threshold (see metrics.json).
      */
@@ -290,7 +290,7 @@ public class ModelStore {
             double confidence = confidenceFor(prediction, p1);
             return new Prediction(
                     prediction,
-                    prediction == 1 ? "PCOS Detected" : "No PCOS Detected",
+                    prediction == 1 ? "High risk \u2014 refer for testing" : "Low risk",
                     p1,
                     confidence,
                     TrainingService.SCREENING_MODEL,
@@ -313,7 +313,7 @@ public class ModelStore {
         double confidence = confidenceFor(prediction, p1);
         return new Prediction(
                 prediction,
-                prediction == 1 ? "PCOS Detected" : "No PCOS Detected",
+                prediction == 1 ? "High risk \u2014 refer for testing" : "Low risk",
                 p1,
                 confidence,
                 metrics.bestModel,

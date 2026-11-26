@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Unit tests for the preprocessing pipeline (mean imputation -> 1st/99th
+ * Unit tests for the preprocessing pipeline (median imputation -> 1st/99th
  * percentile clipping -> standardisation), fitted on TRAIN rows only.
  * No Spring context, no dataset file: synthetic rows with known values.
  */
@@ -37,14 +37,16 @@ class PreprocessingTest {
     }
 
     @Test
-    void missingValueIsImputedWithTrainingMean() {
+    void missingValueIsImputedWithTrainingMedian() {
         List<TrainingService.Row> train = rows();
         Preprocessing prep = SERVICE.fitPreprocessing(train, train, true);
-        // weightKg training mean over the 9 present values: (50+51+52+53+55+56+57+58+59)/9 = 54.555...
-        double expectedMean = (50 + 51 + 52 + 53 + 55 + 56 + 57 + 58 + 59) / 9.0;
-        assertEquals(expectedMean, prep.features.get(1).defaultValue, 1e-9);
-        // Transforming NaN must equal transforming the mean (same z-score).
-        assertEquals(prep.transform(1, expectedMean), prep.transform(1, Double.NaN), 1e-12);
+        // weightKg training median over the 9 present values
+        // [50,51,52,53,55,56,57,58,59] (one missing): the 5th value, 55.
+        // The median, not the mean (54.56): a few extreme outliers would
+        // otherwise drag the fill value far from the typical value.
+        assertEquals(55.0, prep.features.get(1).defaultValue, 1e-9);
+        // Transforming NaN must equal transforming the median (same z-score).
+        assertEquals(prep.transform(1, 55.0), prep.transform(1, Double.NaN), 1e-12);
     }
 
     @Test

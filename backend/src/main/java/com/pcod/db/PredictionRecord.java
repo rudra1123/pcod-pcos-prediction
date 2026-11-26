@@ -15,17 +15,18 @@ import java.time.LocalDateTime;
  *
  * The 41 input features are stored as a single JSON object in
  * {@code featuresJson} (values actually used for the prediction — any
- * feature missing from the request is stored as its training mean, the
+ * feature missing from the request is stored as its training median, the
  * same value the model saw). {@code imputedFieldsJson} records WHICH
- * features were mean-filled (a JSON array of feature keys, "[]" when
+ * features were median-filled (a JSON array of feature keys, "[]" when
  * none were) — retraining must be able to tell real measurements apart
- * from filled-in means, and rows with any imputed field are excluded
+ * from filled-in medians, and rows with any imputed field are excluded
  * from retraining data. {@code prediction}, {@code label},
  * {@code probability}, {@code confidence} and {@code model} are the values
- * returned by {@code POST /api/predict}; {@code createdAt} is set when the
- * record is first saved. Rows written before imputed-field tracking
- * existed have {@code imputedFieldsJson == null} and are treated as
- * unverifiable (excluded from retraining).
+ * returned by {@code POST /api/predict}; {@code modelVersion} is the model
+ * version that made the prediction (see metrics.json); {@code createdAt}
+ * is set when the record is first saved. Rows written before imputed-field
+ * tracking existed have {@code imputedFieldsJson == null} and are treated
+ * as unverifiable (excluded from retraining).
  */
 @Entity
 @Table(name = "prediction_records")
@@ -40,13 +41,22 @@ public class PredictionRecord {
     private String featuresJson;
 
     /**
-     * Feature keys that were mean-imputed for this prediction, as a JSON
+     * Feature keys that were median-imputed for this prediction, as a JSON
      * array (e.g. ["amh","tsh"] or "[]"). Null for rows stored before
      * imputed-field tracking existed. Retraining excludes any verified row
      * with a non-empty list (and any row with a null list).
      */
     @Column(name = "imputed_fields_json", columnDefinition = "TEXT")
     private String imputedFieldsJson;
+
+    /**
+     * Model version that made this prediction (e.g. "1.2.0", from
+     * metrics.json). Recorded so a retrain is auditable: any stored
+     * prediction can be traced to the model that produced it. Null for
+     * rows written before model-version tracking existed.
+     */
+    @Column(name = "model_version", length = 16)
+    private String modelVersion;
 
     /** 0 = no PCOS detected, 1 = PCOS detected. */
     @Column(nullable = false)
@@ -148,6 +158,14 @@ public class PredictionRecord {
 
     public String getModel() {
         return model;
+    }
+
+    public String getModelVersion() {
+        return modelVersion;
+    }
+
+    public void setModelVersion(String modelVersion) {
+        this.modelVersion = modelVersion;
     }
 
     public String getPatientName() {

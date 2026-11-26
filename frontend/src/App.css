@@ -486,6 +486,14 @@ button:disabled { opacity: 0.6; cursor: wait; }
 
 .result-prob { font-size: 1.15rem; margin: 10px 0 6px; }
 
+/* Probability gauge: 0–100% bar with the decision threshold marked */
+.prob-gauge { max-width: 560px; margin: 12px auto 4px; text-align: left; }
+.prob-gauge-track { position: relative; height: 12px; border-radius: 999px; background: rgba(15, 42, 67, 0.12); }
+.prob-gauge-fill { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 999px; background: var(--danger); transition: width 1.4s var(--ease); }
+.result-no-pcos .prob-gauge-fill { background: #16a34a; }
+.prob-gauge-threshold { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--ink); }
+.prob-gauge-labels { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--muted); font-weight: 600; margin-top: 6px; }
+
 /* Top-factors / feature-importance bars */
 .top-factors { text-align: left; max-width: 560px; margin: 16px auto 0; }
 .top-factors h4, .top-factors h3 { margin-bottom: 4px; }

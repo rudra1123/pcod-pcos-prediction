@@ -48,9 +48,14 @@ import java.util.Random;
  *   <li>All tuning uses 5-fold stratified cross-validation <b>on the train
  *       split only</b>: hyperparameter candidates, feature-subset candidates
  *       and the clipping on/off choice are all compared by CV accuracy.</li>
- *   <li>Preprocessing (mean imputation, 1st/99th-percentile clipping,
+ *   <li>Preprocessing (median imputation, 1st/99th-percentile clipping,
  *       standardisation) is fitted on training data only — inside CV, it is
  *       re-fitted on each fold's training part, never on the validation fold.
+ *       The median (not the mean) is the fill value: a few extreme outliers
+ *       (FSH max 5052, Vitamin D3 max 6014.66) inflate the raw mean far
+ *       above the typical value — the FSH raw mean sits +3.9 SD above the
+ *       clipped mean, so a blank FSH filled with the mean would push the
+ *       prediction toward PCOS. The median is the typical value.
  *       Feature ranking (Random Forest importance) is likewise re-computed
  *       inside every CV fold, on that fold's training part only, when
  *       feature subsets are compared — so subset selection never sees a
@@ -70,8 +75,13 @@ import java.util.Random;
  *       the same split and the same train-only CV protocol.</li>
  *   <li>Decision thresholds for the deployed model and the screening model
  *       are tuned on train cross-validation out-of-fold probabilities
- *       only, maximising F1 (ties toward higher recall); the test set is
- *       then measured once at the tuned threshold and once at 0.5.</li>
+ *       only. The deployed model maximises F1 (ties toward higher recall);
+ *       the screening model takes the highest threshold that still reaches
+ *       at least 90% recall on the out-of-fold probabilities (recall is
+ *       constrained first, precision maximised under that constraint —
+ *       a screening tool must miss as few true cases as possible). The
+ *       test set is then measured once at the tuned threshold and once
+ *       at 0.5.</li>
  *   <li>Retraining uses doctor-verified history rows only: prediction
  *       history rows are appended to the TRAIN split only when their
  *       verified outcome is filled in. Unverified model predictions are
@@ -83,6 +93,21 @@ public class TrainingService {
     public static final int SEED = 42;
     public static final double TRAIN_FRACTION = 0.8;
     public static final int CV_FOLDS = 5;
+
+    /**
+     * Model version stamped into metrics.json and onto every prediction
+     * row (PredictionRecord.modelVersion). Bump it when the pipeline
+     * changes (imputation rule, threshold rule, library versions), not on
+     * every retrain. 1.1.0 was the Smile 6.3.0 retrain; 1.2.0 is the
+     * median-imputation + recall-target screening threshold run.
+     */
+    public static final String MODEL_VERSION = "1.2.0";
+
+    /** Recall target for the screening threshold (on out-of-fold probabilities). */
+    public static final double SCREENING_RECALL_TARGET = 0.90;
+
+    /** Repeats for the repeated stratified CV (10 repeats x 5 folds). */
+    public static final int REPEATED_CV_REPEATS = 10;
 
     /** Model display name -> serialised model file name under models/. */
     public static final Map<String, String> MODEL_FILES = Map.of(
@@ -227,7 +252,7 @@ public class TrainingService {
      * (found 2026-11-25, in addition to the 2 genuinely missing cells in
      * SCHEMA.md): beta-HCG II = "1.99." (trailing dot) and AMH = "a" (stray
      * letter). A trailing dot is stripped ("1.99." -&gt; 1.99); any other
-     * unparseable value is treated as missing (NaN) and mean-imputed, and
+     * unparseable value is treated as missing (NaN) and median-imputed, and
      * counted in the log — never silently dropped, never invented.
      *
      * <p>The malformed-cell count is per {@link #loadCsv(Path)} call
@@ -362,7 +387,7 @@ public class TrainingService {
     }
 
     /**
-     * Fits imputation means, clip bounds and standardisation params on
+     * Fits imputation medians, clip bounds and standardisation params on
      * {@code train} only; min/max are computed on {@code all} (used only for
      * the /api/features display ranges). Pass {@code clip=false} to disable
      * outlier clipping (bounds become infinite).
@@ -390,24 +415,38 @@ public class TrainingService {
             s.min = min;
             s.max = max;
 
-            // Training mean (raw scale) — the mean-imputation value and the /api/features default.
-            double sum = 0;
-            int n = 0;
+            // Training median (raw scale) — the median-imputation value and the /api/features default.
+            // The median, not the mean: a few extreme outliers (FSH max 5052,
+            // Vitamin D3 max 6014.66, one LH at 2018) inflate the raw mean far
+            // above the typical value. The FSH raw mean (14.60) sits +3.9 SD
+            // above the clipped mean, so a blank FSH filled with the mean
+            // would push the prediction toward PCOS; the median (4.85) is
+            // the typical value. Only 2 cells in the dataset are genuinely
+            // missing, so this mostly changes inference (blank fields at
+            // predict time), not training.
+            List<Double> present = new ArrayList<>();
             for (Row r : train) {
                 double v = r.x()[j];
                 if (!Double.isNaN(v)) {
-                    sum += v;
-                    n++;
+                    present.add(v);
                 }
             }
-            double rawMean = n == 0 ? 0.0 : sum / n;
-            s.defaultValue = rawMean;
+            Collections.sort(present);
+            double median;
+            if (present.isEmpty()) {
+                median = 0.0;
+            } else if (present.size() % 2 == 1) {
+                median = present.get(present.size() / 2);
+            } else {
+                median = (present.get(present.size() / 2 - 1) + present.get(present.size() / 2)) / 2.0;
+            }
+            s.defaultValue = median;
 
             // Clip bounds: 1st / 99th percentile of the (imputed) training values.
             double[] trainVals = new double[train.size()];
             for (int i = 0; i < train.size(); i++) {
                 double v = train.get(i).x()[j];
-                trainVals[i] = Double.isNaN(v) ? rawMean : v;
+                trainVals[i] = Double.isNaN(v) ? median : v;
             }
             double[] sorted = trainVals.clone();
             Arrays.sort(sorted);
@@ -955,7 +994,12 @@ public class TrainingService {
      * chosen from them has never seen the test set.
      */
     public ProbPredictions oofProbsSingle(ModelConfig config, List<Row> trainRows) {
-        List<List<Row>> folds = stratifiedFolds(trainRows, CV_FOLDS, SEED);
+        return oofProbsSingle(config, trainRows, SEED);
+    }
+
+    /** Same as {@link #oofProbsSingle(ModelConfig, List)} with an explicit fold seed (repeated CV). */
+    public ProbPredictions oofProbsSingle(ModelConfig config, List<Row> trainRows, long seed) {
+        List<List<Row>> folds = stratifiedFolds(trainRows, CV_FOLDS, seed);
         int[] actual = new int[trainRows.size()];
         double[] prob = new double[trainRows.size()];
         Map<Row, Integer> pos = new java.util.IdentityHashMap<>();
@@ -971,12 +1015,12 @@ public class TrainingService {
                 }
             }
             if (config.oversample()) {
-                foldTrain = oversample(foldTrain, SEED + f);
+                foldTrain = oversample(foldTrain, seed + f);
             }
             Preprocessing prep = fitPreprocessing(foldTrain, foldTrain, config.clip());
             DataFrame trainDf = toDataFrame(foldTrain, prep, config.features());
             DataFrame valDf = toDataFrame(val, prep, config.features());
-            Object model = trainOne(config, trainDf, SEED + f);
+            Object model = trainOne(config, trainDf, seed + f);
             Predictor predictor = predictorFor(model);
             ProbPredictions pp = collectProbs(predictor, valDf);
             for (int i = 0; i < val.size(); i++) {
@@ -990,7 +1034,12 @@ public class TrainingService {
 
     /** Out-of-fold P(PCOS) for the soft-voting ensemble (average of the four tuned models). */
     public ProbPredictions oofProbsVoting(List<TunedModel> tuned, List<Row> trainRows) {
-        List<List<Row>> folds = stratifiedFolds(trainRows, CV_FOLDS, SEED);
+        return oofProbsVoting(tuned, trainRows, SEED);
+    }
+
+    /** Same as {@link #oofProbsVoting(List, List)} with an explicit fold seed (repeated CV). */
+    public ProbPredictions oofProbsVoting(List<TunedModel> tuned, List<Row> trainRows, long seed) {
+        List<List<Row>> folds = stratifiedFolds(trainRows, CV_FOLDS, seed);
         int[] actual = new int[trainRows.size()];
         double[] prob = new double[trainRows.size()];
         Map<Row, Integer> pos = new java.util.IdentityHashMap<>();
@@ -1009,11 +1058,11 @@ public class TrainingService {
             List<DataFrame> valDfs = new ArrayList<>();
             for (TunedModel tm : tuned) {
                 List<Row> modelTrain = tm.config().oversample()
-                        ? oversample(foldTrain, SEED + f) : foldTrain;
+                        ? oversample(foldTrain, seed + f) : foldTrain;
                 Preprocessing prep = fitPreprocessing(modelTrain, modelTrain, tm.config().clip());
                 DataFrame trainDf = toDataFrame(modelTrain, prep, tm.config().features());
                 DataFrame valDf = toDataFrame(val, prep, tm.config().features());
-                Object model = trainOne(tm.config(), trainDf, SEED + f);
+                Object model = trainOne(tm.config(), trainDf, seed + f);
                 predictors.add(predictorFor(model));
                 valDfs.add(valDf);
             }
@@ -1033,14 +1082,19 @@ public class TrainingService {
     }
 
     /**
-     * Fills a {@link Metrics.ThresholdReport}: tunes the threshold on the
-     * out-of-fold probabilities, then measures the SAME model on the test
-     * set once at the tuned threshold and once at the default 0.5.
+     * Fills a {@link Metrics.ThresholdReport}: the threshold was already
+     * tuned on the out-of-fold probabilities (see {@link #tuneThreshold}
+     * or {@link #tuneThresholdRecallTarget}); this measures the SAME model
+     * on the test set once at the tuned threshold and once at the default
+     * 0.5. {@code chosenOn} records the tuning rule, so the report can
+     * tell the F1 rule (deployed model) apart from the recall-target rule
+     * (screening model).
      */
     private void fillThresholdReport(Metrics.ThresholdReport report,
-                                     ProbPredictions oof, ProbPredictions testPp) {
-        double[] tuned = tuneThreshold(oof);
+                                     ProbPredictions oof, ProbPredictions testPp,
+                                     double[] tuned, String chosenOn) {
         report.threshold = tuned[0];
+        report.chosenOn = chosenOn;
         report.oofPrecision = tuned[1];
         report.oofRecall = tuned[2];
         report.oofF1 = tuned[3];
@@ -1101,6 +1155,412 @@ public class TrainingService {
             }
         }
         return new double[]{bestT, bestP, bestR, bestF1};
+    }
+
+    /**
+     * Chooses the screening threshold from out-of-fold probabilities by a
+     * RECALL TARGET: the highest threshold (0.01 grid) that still reaches
+     * at least {@code targetRecall} on the out-of-fold data — recall is
+     * constrained first, and among the thresholds meeting the target the
+     * one with the highest precision wins (ties: the higher threshold).
+     * That is the most conservative threshold meeting the target, i.e.
+     * the best precision available without missing more true cases than
+     * the target allows. Returns the threshold plus its out-of-fold
+     * precision/recall/F1. If no threshold on the grid reaches the target
+     * (a very weak model), it falls back to the lowest threshold (0.01),
+     * which maximises recall.
+     */
+    public double[] tuneThresholdRecallTarget(ProbPredictions oof, double targetRecall) {
+        double bestT = 0.01;
+        double bestP = 0, bestR = 0, bestF1 = 0;
+        boolean found = false;
+        for (int k = 1; k <= 99; k++) {
+            double t = k * 0.01;
+            int tp = 0, fp = 0, fn = 0;
+            for (int i = 0; i < oof.actual().length; i++) {
+                int pred = oof.prob()[i] >= t ? 1 : 0;
+                if (pred == 1 && oof.actual()[i] == 1) tp++;
+                else if (pred == 1) fp++;
+                else if (oof.actual()[i] == 1) fn++;
+            }
+            double p = (tp + fp) == 0 ? 0.0 : (double) tp / (tp + fp);
+            double r = (tp + fn) == 0 ? 0.0 : (double) tp / (tp + fn);
+            double f1 = (p + r) == 0 ? 0.0 : 2 * p * r / (p + r);
+            if (r >= targetRecall) {
+                // Highest threshold meeting the target, best precision first.
+                if (!found || p > bestP + 1e-12 || (Math.abs(p - bestP) <= 1e-12 && t > bestT)) {
+                    bestT = t;
+                    bestP = p;
+                    bestR = r;
+                    bestF1 = f1;
+                    found = true;
+                }
+            }
+        }
+        if (!found) {
+            // No threshold reached the target: take the lowest grid point (max recall).
+            int tp = 0, fp = 0, fn = 0;
+            for (int i = 0; i < oof.actual().length; i++) {
+                int pred = oof.prob()[i] >= 0.01 ? 1 : 0;
+                if (pred == 1 && oof.actual()[i] == 1) tp++;
+                else if (pred == 1) fp++;
+                else if (oof.actual()[i] == 1) fn++;
+            }
+            bestP = (tp + fp) == 0 ? 0.0 : (double) tp / (tp + fp);
+            bestR = (tp + fn) == 0 ? 0.0 : (double) tp / (tp + fn);
+            bestF1 = (bestP + bestR) == 0 ? 0.0 : 2 * bestP * bestR / (bestP + bestR);
+        }
+        return new double[]{bestT, bestP, bestR, bestF1};
+    }
+
+    // ------------------------------------------- extra evaluation (9/10 package)
+
+    /**
+     * Like {@link #metricsFromProbs} but without the bootstrap CI and ROC
+     * curve points: the light version used inside the repeated CV, where
+     * those would be 10 repeats x 5 folds x 10 models of wasted work.
+     * Accuracy / precision / recall / F1 / ROC-AUC / PR-AUC / Brier are
+     * identical to the full version.
+     */
+    public Metrics.ModelMetrics metricsFromProbsLight(String name, int[] actual, double[] prob,
+                                                      double threshold) {
+        int tp = 0, fp = 0, fn = 0, tn = 0;
+        for (int i = 0; i < actual.length; i++) {
+            int pred = prob[i] >= threshold ? 1 : 0;
+            if (pred == 1 && actual[i] == 1) tp++;
+            else if (pred == 0 && actual[i] == 0) tn++;
+            else if (pred == 1 && actual[i] == 0) fp++;
+            else fn++;
+        }
+        int total = tp + tn + fp + fn;
+        double accuracy = (double) (tp + tn) / total;
+        double precision = (tp + fp) == 0 ? 0.0 : (double) tp / (tp + fp);
+        double recall = (tp + fn) == 0 ? 0.0 : (double) tp / (tp + fn);
+        double f1 = (precision + recall) == 0 ? 0.0 : 2 * precision * recall / (precision + recall);
+        Metrics.ModelMetrics m = new Metrics.ModelMetrics(name, accuracy, precision, recall, f1);
+        m.threshold = threshold;
+        m.confusionMatrix = new Metrics.ConfusionMatrix(tp, fp, fn, tn);
+        m.rocAuc = rocAuc(actual, prob);
+        m.prAuc = prAuc(actual, prob);
+        m.brierScore = brierScore(actual, prob);
+        return m;
+    }
+
+    /** Out-of-fold P(PCOS) for one array-based baseline (LR / SVM / KNN) or a Decision Tree. */
+    public ProbPredictions oofProbsBaseline(String kind, Map<String, Object> params,
+                                            List<Row> rows, int[] features, long seed) {
+        List<List<Row>> folds = stratifiedFolds(rows, CV_FOLDS, seed);
+        int[] actual = new int[rows.size()];
+        double[] prob = new double[rows.size()];
+        Map<Row, Integer> pos = new java.util.IdentityHashMap<>();
+        for (int i = 0; i < rows.size(); i++) {
+            pos.put(rows.get(i), i);
+        }
+        for (int f = 0; f < CV_FOLDS; f++) {
+            List<Row> val = folds.get(f);
+            List<Row> foldTrain = new ArrayList<>();
+            for (int g = 0; g < CV_FOLDS; g++) {
+                if (g != f) {
+                    foldTrain.addAll(folds.get(g));
+                }
+            }
+            Preprocessing prep = fitPreprocessing(foldTrain, foldTrain, true);
+            if (kind.equals("Decision Tree")) {
+                ModelConfig cfg = new ModelConfig(kind, params, features, true);
+                DataFrame trainDf = toDataFrame(foldTrain, prep, features);
+                DataFrame valDf = toDataFrame(val, prep, features);
+                Object model = trainOne(cfg, trainDf, seed + f);
+                ProbPredictions pp = collectProbs(predictorFor(model), valDf);
+                for (int i = 0; i < val.size(); i++) {
+                    int idx = pos.get(val.get(i));
+                    actual[idx] = pp.actual()[i];
+                    prob[idx] = pp.prob()[i];
+                }
+            } else {
+                Matrix trainM = toMatrix(foldTrain, prep, features);
+                Matrix valM = toMatrix(val, prep, features);
+                Classifier<double[]> model = fitBaseline(kind, params, trainM, seed + f);
+                for (int i = 0; i < valM.x().length; i++) {
+                    double[] post = new double[2];
+                    model.predict(valM.x()[i], post);
+                    int idx = pos.get(val.get(i));
+                    actual[idx] = valM.y()[i];
+                    prob[idx] = post[0] + post[1] > 0 ? post[1] / (post[0] + post[1]) : 0.5;
+                }
+            }
+        }
+        return new ProbPredictions(actual, prob);
+    }
+
+    private static double[] meanSd(double[] v) {
+        double mean = Arrays.stream(v).average().orElse(0.0);
+        double var = 0;
+        for (double d : v) {
+            var += (d - mean) * (d - mean);
+        }
+        double sd = v.length > 1 ? Math.sqrt(var / (v.length - 1)) : 0.0;
+        return new double[]{mean, sd};
+    }
+
+    /**
+     * Repeated stratified cross-validation: {@link #REPEATED_CV_REPEATS}
+     * repeats x 5 folds on ALL rows, with the tuned hyperparameters held
+     * fixed (no re-tuning per repeat) and preprocessing re-fitted inside
+     * every fold. Each repeat uses a different fold seed, so the 10 values
+     * per metric are genuinely different partitions. Reported as mean +/-
+     * SD per model (accuracy, precision, recall, F1, ROC-AUC, all at the
+     * 0.5 threshold). The held-out 80/20 split stays the secondary check.
+     */
+    public List<Metrics.RepeatedCvEntry> repeatedCv(List<TunedModel> tuned, TunedModel screening,
+                                                    Map<String, Map<String, Object>> baselineParams,
+                                                    List<Row> all) {
+        int repeats = REPEATED_CV_REPEATS;
+        List<String> names = new ArrayList<>();
+        for (TunedModel tm : tuned) {
+            names.add(tm.config().model());
+        }
+        names.add("Soft Voting Ensemble");
+        names.add(SCREENING_MODEL);
+        names.addAll(List.of("Logistic Regression", "Decision Tree", "SVM (Linear)", "KNN"));
+        Map<String, double[]> acc = new LinkedHashMap<>();
+        Map<String, double[]> prec = new LinkedHashMap<>();
+        Map<String, double[]> rec = new LinkedHashMap<>();
+        Map<String, double[]> f1 = new LinkedHashMap<>();
+        Map<String, double[]> auc = new LinkedHashMap<>();
+        for (String n : names) {
+            acc.put(n, new double[repeats]);
+            prec.put(n, new double[repeats]);
+            rec.put(n, new double[repeats]);
+            f1.put(n, new double[repeats]);
+            auc.put(n, new double[repeats]);
+        }
+        for (int r = 0; r < repeats; r++) {
+            long seed = SEED + 1000L + r * 17L;
+            Map<String, ProbPredictions> oof = new LinkedHashMap<>();
+            for (TunedModel tm : tuned) {
+                oof.put(tm.config().model(), oofProbsSingle(tm.config(), all, seed));
+            }
+            oof.put("Soft Voting Ensemble", oofProbsVoting(tuned, all, seed));
+            oof.put(SCREENING_MODEL, oofProbsSingle(screening.config(), all, seed));
+            for (String kind : List.of("Logistic Regression", "Decision Tree", "SVM (Linear)", "KNN")) {
+                oof.put(kind, oofProbsBaseline(kind, baselineParams.get(kind), all, allFeatures(), seed));
+            }
+            for (String n : names) {
+                ProbPredictions pp = oof.get(n);
+                Metrics.ModelMetrics m = metricsFromProbsLight(n, pp.actual(), pp.prob(), 0.5);
+                acc.get(n)[r] = m.accuracy;
+                prec.get(n)[r] = m.precision;
+                rec.get(n)[r] = m.recall;
+                f1.get(n)[r] = m.f1;
+                auc.get(n)[r] = m.rocAuc;
+            }
+            System.out.printf("[REPEATED-CV] repeat %d/%d done (seed %d)%n", r + 1, repeats, seed);
+        }
+        List<Metrics.RepeatedCvEntry> out = new ArrayList<>();
+        for (String n : names) {
+            Metrics.RepeatedCvEntry e = new Metrics.RepeatedCvEntry();
+            e.model = n;
+            e.repeats = repeats;
+            e.folds = CV_FOLDS;
+            double[] a = meanSd(acc.get(n));
+            e.accuracyMean = a[0];
+            e.accuracySd = a[1];
+            double[] p = meanSd(prec.get(n));
+            e.precisionMean = p[0];
+            e.precisionSd = p[1];
+            double[] rc = meanSd(rec.get(n));
+            e.recallMean = rc[0];
+            e.recallSd = rc[1];
+            double[] f = meanSd(f1.get(n));
+            e.f1Mean = f[0];
+            e.f1Sd = f[1];
+            double[] u = meanSd(auc.get(n));
+            e.rocAucMean = u[0];
+            e.rocAucSd = u[1];
+            out.add(e);
+            System.out.printf("[REPEATED-CV] %-28s acc=%.4f+/-%.4f P=%.4f R=%.4f F1=%.4f ROC=%.4f%n",
+                    n, e.accuracyMean, e.accuracySd, e.precisionMean, e.recallMean, e.f1Mean, e.rocAucMean);
+        }
+        return out;
+    }
+
+    /** Exact two-sided binomial p-value for McNemar's test (n = b + c discordant pairs). */
+    static double mcnemarExactP(int b, int c) {
+        int n = b + c;
+        if (n == 0) {
+            return 1.0;
+        }
+        int k = Math.min(b, c);
+        // Sum P(X <= k), X ~ Bin(n, 0.5), by iterating the pmf terms.
+        double term = Math.pow(0.5, n); // P(X = 0)
+        double cum = term;
+        for (int i = 1; i <= k; i++) {
+            term = term * (n - i + 1) / i;
+            cum += term;
+        }
+        return Math.min(1.0, 2.0 * cum);
+    }
+
+    /**
+     * McNemar's paired test between two models on the SAME test rows, each
+     * at its own decision threshold (voting at its tuned threshold, the
+     * other at 0.5). Counts the discordant pairs (A right / B wrong, and
+     * vice versa) and reports the exact two-sided binomial p-value — the
+     * honest answer to "is the ensemble really better than the baseline,
+     * or is the gap noise on 108 rows?".
+     */
+    public static Metrics.McNemarEntry mcnemar(String comparison,
+                                               int[] actual, double[] probA, double thresholdA,
+                                               double[] probB, double thresholdB) {
+        int b = 0, c = 0;
+        for (int i = 0; i < actual.length; i++) {
+            int predA = probA[i] >= thresholdA ? 1 : 0;
+            int predB = probB[i] >= thresholdB ? 1 : 0;
+            boolean aOk = predA == actual[i];
+            boolean bOk = predB == actual[i];
+            if (aOk && !bOk) {
+                b++;
+            } else if (!aOk && bOk) {
+                c++;
+            }
+        }
+        Metrics.McNemarEntry e = new Metrics.McNemarEntry();
+        e.comparison = comparison;
+        e.b = b;
+        e.c = c;
+        e.chiSquare = (b + c == 0) ? 0.0 : Math.pow(Math.abs(b - c) - 1, 2) / (double) (b + c);
+        e.pValue = mcnemarExactP(b, c);
+        System.out.printf("[MCNEMAR] %s: b=%d c=%d chi2=%.3f p=%.4f%n", comparison, b, c, e.chiSquare, e.pValue);
+        return e;
+    }
+
+    /** Trains one config on train rows and returns its P(PCOS) on the test rows (ablation helper). */
+    private ProbPredictions fitAndPredict(ModelConfig cfg, List<Row> train, List<Row> test) {
+        Preprocessing prep = fitPreprocessing(train, train, cfg.clip());
+        DataFrame trainDf = toDataFrame(train, prep, cfg.features());
+        DataFrame testDf = toDataFrame(test, prep, cfg.features());
+        Object model = trainOne(cfg, trainDf, SEED);
+        return collectProbs(predictorFor(model), testDf);
+    }
+
+    /**
+     * Feature-group ablation: the same protocol (same split, fixed tuned
+     * hyperparameters) on feature subsets, so "follicle counts are
+     * near-diagnostic" becomes a measured result. Variants: full 41 /
+     * without ultrasound / without hormones / non-invasive only (23).
+     * Each variant reports the voting ensemble and Gradient Boosting at
+     * threshold 0.5. For the non-invasive variant the Gradient Boosting
+     * number is the screening model itself (tuned on those 23 features);
+     * the voting number is the four tuned models restricted to the 23.
+     */
+    public List<Metrics.AblationEntry> ablation(List<TunedModel> tuned, TunedModel screeningBest,
+                                                Map<String, ProbPredictions> testProbs,
+                                                ProbPredictions votingPp, ProbPredictions screeningPp,
+                                                List<Row> train, List<Row> test) {
+        List<Metrics.AblationEntry> out = new ArrayList<>();
+        // Full 41 features: reuse the main run's test probabilities (at 0.5).
+        Metrics.AblationEntry full = new Metrics.AblationEntry();
+        full.variant = "full (41 features)";
+        full.nFeatures = 41;
+        Metrics.ModelMetrics vFull = metricsFromProbsLight("voting", votingPp.actual(), votingPp.prob(), 0.5);
+        Metrics.ModelMetrics gFull = metricsFromProbsLight("gb", testProbs.get("Gradient Boosting").actual(),
+                testProbs.get("Gradient Boosting").prob(), 0.5);
+        full.votingAccuracy = vFull.accuracy;
+        full.votingRecall = vFull.recall;
+        full.gbmAccuracy = gFull.accuracy;
+        full.gbmRecall = gFull.recall;
+        out.add(full);
+        // The three restricted variants.
+        List<String> dropUltrasound = List.of("follicleL", "follicleR", "avgFollicleSizeL",
+                "avgFollicleSizeR", "endometrium");
+        List<String> dropHormones = List.of("fsh", "lh", "fshLh", "amh", "tsh", "prl");
+        Map<String, int[]> variantFeatures = new LinkedHashMap<>();
+        variantFeatures.put("without ultrasound (36 features)", FeatureSpec.FEATURES.stream()
+                .filter(f -> !dropUltrasound.contains(f.key()))
+                .mapToInt(f -> FeatureSpec.FEATURES.indexOf(f)).toArray());
+        variantFeatures.put("without hormones (35 features)", FeatureSpec.FEATURES.stream()
+                .filter(f -> !dropHormones.contains(f.key()))
+                .mapToInt(f -> FeatureSpec.FEATURES.indexOf(f)).toArray());
+        variantFeatures.put("non-invasive only (23 features)", FeatureSpec.screeningIndices());
+        for (Map.Entry<String, int[]> variant : variantFeatures.entrySet()) {
+            java.util.Set<Integer> allowed = new java.util.HashSet<>();
+            for (int j : variant.getValue()) {
+                allowed.add(j);
+            }
+            List<ProbPredictions> parts = new ArrayList<>();
+            for (TunedModel tm : tuned) {
+                int[] subset = Arrays.stream(tm.config().features()).filter(allowed::contains).toArray();
+                ModelConfig cfg = new ModelConfig(tm.config().model(), tm.config().params(),
+                        subset, tm.config().clip(), tm.config().oversample());
+                parts.add(fitAndPredict(cfg, train, test));
+            }
+            ProbPredictions votingVariant = averageProbs(parts);
+            Metrics.ModelMetrics v = metricsFromProbsLight("voting",
+                    votingVariant.actual(), votingVariant.prob(), 0.5);
+            ProbPredictions gbPp;
+            if (variant.getKey().startsWith("non-invasive")) {
+                gbPp = screeningPp; // the screening model IS GB on these 23 features
+            } else {
+                TunedModel gb = tuned.stream()
+                        .filter(tm -> tm.config().model().equals("Gradient Boosting"))
+                        .findFirst().orElseThrow();
+                int[] subset = Arrays.stream(gb.config().features()).filter(allowed::contains).toArray();
+                ModelConfig cfg = new ModelConfig(gb.config().model(), gb.config().params(),
+                        subset, gb.config().clip(), gb.config().oversample());
+                gbPp = fitAndPredict(cfg, train, test);
+            }
+            Metrics.ModelMetrics g = metricsFromProbsLight("gb", gbPp.actual(), gbPp.prob(), 0.5);
+            Metrics.AblationEntry e = new Metrics.AblationEntry();
+            e.variant = variant.getKey();
+            e.nFeatures = variant.getValue().length;
+            e.votingAccuracy = v.accuracy;
+            e.votingRecall = v.recall;
+            e.gbmAccuracy = g.accuracy;
+            e.gbmRecall = g.recall;
+            out.add(e);
+            System.out.printf("[ABLATION] %-32s voting acc=%.4f R=%.4f | GB acc=%.4f R=%.4f%n",
+                    e.variant, e.votingAccuracy, e.votingRecall, e.gbmAccuracy, e.gbmRecall);
+        }
+        return out;
+    }
+
+    /**
+     * Reliability-curve bins (10 equal-width probability bins): for each
+     * bin the count, the mean predicted probability and the observed PCOS
+     * frequency. A Brier score alone does not show calibration — these
+     * bins do (a perfectly calibrated model has meanPredicted ==
+     * observedFrequency in every bin). The report's calibration plot is
+     * built from these bins.
+     */
+    public static List<Metrics.CalibrationBin> calibrationBins(int[] actual, double[] prob) {
+        List<Metrics.CalibrationBin> bins = new ArrayList<>();
+        for (int b = 0; b < 10; b++) {
+            double lo = b / 10.0;
+            double hi = (b + 1) / 10.0;
+            int count = 0;
+            double sumP = 0;
+            int pos = 0;
+            for (int i = 0; i < actual.length; i++) {
+                boolean inBin = (b == 9)
+                        ? (prob[i] >= lo && prob[i] <= hi)
+                        : (prob[i] >= lo && prob[i] < hi);
+                if (inBin) {
+                    count++;
+                    sumP += prob[i];
+                    if (actual[i] == 1) {
+                        pos++;
+                    }
+                }
+            }
+            Metrics.CalibrationBin bin = new Metrics.CalibrationBin();
+            bin.binLow = lo;
+            bin.binHigh = hi;
+            bin.count = count;
+            bin.meanPredicted = count == 0 ? 0.0 : sumP / count;
+            bin.observedFrequency = count == 0 ? 0.0 : (double) pos / count;
+            bins.add(bin);
+        }
+        return bins;
     }
 
     private static String[] columnNames(DataFrame df) {
@@ -1411,7 +1871,7 @@ public class TrainingService {
         MathEx.setSeed(SEED); // Smile's global RNG — reproducible training.
         List<Row> all = loadCsv(csvPath);
         if (malformedCells() > 0) {
-            System.out.println("Malformed numeric cells treated as missing (mean-imputed): " + malformedCells());
+            System.out.println("Malformed numeric cells treated as missing (median-imputed): " + malformedCells());
         }
         if (all.size() != 541) {
             System.out.println("WARNING: expected 541 rows, found " + all.size());
@@ -1596,9 +2056,12 @@ public class TrainingService {
         metrics.tuningMethod = "5-fold stratified CV on the TRAIN split only (seed 42). "
                 + "Hyperparameter grid + feature-subset (RF importance re-ranked inside each CV fold, "
                 + "on the fold's training rows only) + clipping on/off compared by CV. "
-                + "Test split evaluated exactly once, after all tuning. Preprocessing re-fitted inside every CV fold. "
+                + "Test split evaluated once per model, after all tuning. Preprocessing re-fitted inside every CV fold. "
                 + "Baselines and the screening model use the same split and the same train-only CV protocol. "
-                + "Decision thresholds are tuned on train CV out-of-fold probabilities only, never on the test set.";
+                + "Decision thresholds are tuned on train CV out-of-fold probabilities only, never on the test set. "
+                + "The screening threshold uses a recall target (>=90% out-of-fold recall). "
+                + "Repeated CV (10x5, all rows), McNemar tests, ablation and calibration reuse the fixed tuned "
+                + "hyperparameters; they are extra analyses of the same run, not new tuning.";
         metrics.verifiedRowsUsed = extraVerifiedRows == null ? 0 : extraVerifiedRows.size();
         metrics.cvLog = cvLog;
         metrics.votingCvAccuracy = votingCv;
@@ -1679,17 +2142,20 @@ public class TrainingService {
         // Deployed model: threshold maximising OOF F1 (ties -> higher recall).
         Metrics.ThresholdReport deployedReport = new Metrics.ThresholdReport();
         ProbPredictions deployedTestPp;
+        ProbPredictions deployedOof;
         if (useVoting) {
             deployedReport.model = "Soft Voting Ensemble";
             deployedTestPp = votingPp;
-            ProbPredictions oof = oofProbsVoting(new ArrayList<>(tuned.values()), train);
-            fillThresholdReport(deployedReport, oof, deployedTestPp);
+            deployedOof = oofProbsVoting(new ArrayList<>(tuned.values()), train);
         } else {
             deployedReport.model = deployedName;
             deployedTestPp = testProbs.get(deployedName);
-            ProbPredictions oof = oofProbsSingle(deployedConfig, train);
-            fillThresholdReport(deployedReport, oof, deployedTestPp);
+            deployedOof = oofProbsSingle(deployedConfig, train);
         }
+        fillThresholdReport(deployedReport, deployedOof, deployedTestPp,
+                tuneThreshold(deployedOof),
+                "train 5-fold CV out-of-fold probabilities, maximising F1 "
+                        + "(ties broken toward higher recall); never tuned on the test set");
         metrics.deployedThreshold = deployedReport;
         System.out.printf("Threshold (deployed %s): tuned=%.2f (OOF P=%.4f R=%.4f F1=%.4f) | "
                         + "test at tuned: acc=%.4f P=%.4f R=%.4f F1=%.4f | test at 0.5: acc=%.4f P=%.4f R=%.4f F1=%.4f%n",
@@ -1699,10 +2165,20 @@ public class TrainingService {
                 deployedReport.testRecall, deployedReport.testF1,
                 deployedReport.defaultThresholdTestAccuracy, deployedReport.defaultThresholdTestPrecision,
                 deployedReport.defaultThresholdTestRecall, deployedReport.defaultThresholdTestF1);
-        // Screening model: same procedure, its own threshold.
+        // Screening model: its own threshold, by RECALL TARGET — the highest
+        // threshold that still reaches >=90% recall on the out-of-fold
+        // probabilities (see tuneThresholdRecallTarget). A screening tool
+        // must miss as few true cases as possible; precision is maximised
+        // only under that recall constraint.
         Metrics.ThresholdReport screeningReport = new Metrics.ThresholdReport();
         screeningReport.model = SCREENING_MODEL;
-        fillThresholdReport(screeningReport, oofProbsSingle(screeningBest.config(), train), screeningPp);
+        ProbPredictions screeningOof = oofProbsSingle(screeningBest.config(), train);
+        fillThresholdReport(screeningReport, screeningOof, screeningPp,
+                tuneThresholdRecallTarget(screeningOof, SCREENING_RECALL_TARGET),
+                "train 5-fold CV out-of-fold probabilities, recall target >= "
+                        + String.format("%.0f%%", SCREENING_RECALL_TARGET * 100)
+                        + " (highest threshold meeting the target, ties toward higher precision); "
+                        + "never tuned on the test set");
         metrics.screeningThreshold = screeningReport;
         System.out.printf("Threshold (screening): tuned=%.2f (OOF P=%.4f R=%.4f F1=%.4f) | "
                         + "test at tuned: acc=%.4f P=%.4f R=%.4f F1=%.4f | test at 0.5: acc=%.4f P=%.4f R=%.4f F1=%.4f%n",
@@ -1803,6 +2279,34 @@ public class TrainingService {
                     b.name, b.accuracy, b.precision, b.recall, b.f1,
                     b.rocAuc, b.prAuc, b.brierScore, b.cvAccuracy);
         }
+
+        // ---- Extra evaluation (repeated CV, McNemar, ablation, calibration).
+        // All of these reuse the FIXED tuned hyperparameters (no re-tuning)
+        // and the same 80/20 split, so they are directly comparable with
+        // the main results above. They answer the questions a single
+        // 108-row test result cannot: how stable is each model (repeated
+        // CV), is the ensemble really better than the baselines (McNemar),
+        // how much do the feature groups matter (ablation), and are the
+        // probabilities calibrated (reliability curve).
+        metrics.modelVersion = MODEL_VERSION;
+        metrics.repeatedCv = repeatedCv(new ArrayList<>(tuned.values()), screeningBest,
+                baselineBestParams, all);
+        metrics.mcnemar = List.of(
+                mcnemar("Soft Voting Ensemble vs Logistic Regression",
+                        votingPp.actual(), votingPp.prob(),
+                        useVoting ? deployedReport.threshold : 0.5,
+                        baselineProbs.get("Logistic Regression").prob(), 0.5),
+                mcnemar("Soft Voting Ensemble vs Gradient Boosting",
+                        votingPp.actual(), votingPp.prob(),
+                        useVoting ? deployedReport.threshold : 0.5,
+                        testProbs.get("Gradient Boosting").prob(), 0.5));
+        metrics.ablation = ablation(new ArrayList<>(tuned.values()), screeningBest,
+                testProbs, votingPp, screeningPp, train, test);
+        Metrics.CalibrationReport cal = new Metrics.CalibrationReport();
+        cal.model = "Soft Voting Ensemble";
+        cal.testBins = calibrationBins(votingPp.actual(), votingPp.prob());
+        cal.oofBins = calibrationBins(deployedOof.actual(), deployedOof.prob());
+        metrics.calibration = cal;
 
         metrics.bestModel = deployedName;
         // modelAccuracy reported by /api/predict = test accuracy of the deployed

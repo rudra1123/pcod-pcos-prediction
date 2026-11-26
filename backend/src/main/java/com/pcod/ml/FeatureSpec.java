@@ -14,50 +14,61 @@ import java.util.List;
  */
 public final class FeatureSpec {
 
-    public record Feature(String key, String label, String csvHeader, String type) {}
+    public record Feature(String key, String label, String csvHeader, String type,
+                            double min, double max) {}
+
+    /**
+     * Plausible range for server-side validation: a value outside it is
+     * rejected with HTTP 400 instead of being silently clipped (age 500 or
+     * FSH 9000 must never reach the model). These are the same bounds the
+     * frontend already uses (frontend/src/features.js): the observed
+     * dataset min/max, except pulse rate (raw min 13 bpm) and blood
+     * pressure (raw min 12/8 mmHg), which were clipped to plausible
+     * clinical bounds. They are data ranges, not diagnosis cut-offs.
+     */
 
     public static final List<Feature> FEATURES = List.of(
-            new Feature("age", "Age (years)", "Age (yrs)", "number"),
-            new Feature("weightKg", "Weight (kg)", "Weight (Kg)", "number"),
-            new Feature("heightCm", "Height (cm)", "Height(Cm)", "number"),
-            new Feature("bmi", "BMI", "BMI", "number"),
-            new Feature("bloodGroup", "Blood group (code)", "Blood Group", "number"),
-            new Feature("pulseRate", "Pulse rate (bpm)", "Pulse rate(bpm)", "number"),
-            new Feature("rr", "Respiratory rate (breaths/min)", "RR (breaths/min)", "number"),
-            new Feature("hb", "Haemoglobin (g/dl)", "Hb(g/dl)", "number"),
-            new Feature("cycle", "Cycle (R/I)", "Cycle(R/I)", "number"),
-            new Feature("cycleLength", "Cycle length (days)", "Cycle length(days)", "number"),
-            new Feature("marriageYears", "Marriage duration (years)", "Marraige Status (Yrs)", "number"),
-            new Feature("pregnant", "Pregnant (0 = No, 1 = Yes)", "Pregnant(Y/N)", "number"),
-            new Feature("abortions", "No. of abortions", "No. of aborptions", "number"),
-            new Feature("betaHcg1", "Beta-HCG I (mIU/mL)", "I   beta-HCG(mIU/mL)", "number"),
-            new Feature("betaHcg2", "Beta-HCG II (mIU/mL)", "II    beta-HCG(mIU/mL)", "number"),
-            new Feature("fsh", "FSH (mIU/mL)", "FSH(mIU/mL)", "number"),
-            new Feature("lh", "LH (mIU/mL)", "LH(mIU/mL)", "number"),
-            new Feature("fshLh", "FSH/LH ratio", "FSH/LH", "number"),
-            new Feature("hip", "Hip (inch)", "Hip(inch)", "number"),
-            new Feature("waist", "Waist (inch)", "Waist(inch)", "number"),
-            new Feature("waistHipRatio", "Waist:Hip ratio", "Waist:Hip Ratio", "number"),
-            new Feature("tsh", "TSH (mIU/L)", "TSH (mIU/L)", "number"),
-            new Feature("amh", "AMH (ng/mL)", "AMH(ng/mL)", "number"),
-            new Feature("prl", "PRL (ng/mL)", "PRL(ng/mL)", "number"),
-            new Feature("vitD3", "Vitamin D3 (ng/mL)", "Vit D3 (ng/mL)", "number"),
-            new Feature("prg", "PRG (ng/mL)", "PRG(ng/mL)", "number"),
-            new Feature("rbs", "Random blood sugar (mg/dl)", "RBS(mg/dl)", "number"),
-            new Feature("weightGain", "Weight gain (0 = No, 1 = Yes)", "Weight gain(Y/N)", "number"),
-            new Feature("hairGrowth", "Hair growth (0 = No, 1 = Yes)", "hair growth(Y/N)", "number"),
-            new Feature("skinDarkening", "Skin darkening (0 = No, 1 = Yes)", "Skin darkening (Y/N)", "number"),
-            new Feature("hairLoss", "Hair loss (0 = No, 1 = Yes)", "Hair loss(Y/N)", "number"),
-            new Feature("pimples", "Pimples (0 = No, 1 = Yes)", "Pimples(Y/N)", "number"),
-            new Feature("fastFood", "Fast food (0 = No, 1 = Yes)", "Fast food (Y/N)", "number"),
-            new Feature("regularExercise", "Regular exercise (0 = No, 1 = Yes)", "Reg.Exercise(Y/N)", "number"),
-            new Feature("bpSystolic", "BP systolic (mmHg)", "BP _Systolic (mmHg)", "number"),
-            new Feature("bpDiastolic", "BP diastolic (mmHg)", "BP _Diastolic (mmHg)", "number"),
-            new Feature("follicleL", "Follicle count (left)", "Follicle No. (L)", "number"),
-            new Feature("follicleR", "Follicle count (right)", "Follicle No. (R)", "number"),
-            new Feature("avgFollicleSizeL", "Avg. follicle size (left, mm)", "Avg. F size (L) (mm)", "number"),
-            new Feature("avgFollicleSizeR", "Avg. follicle size (right, mm)", "Avg. F size (R) (mm)", "number"),
-            new Feature("endometrium", "Endometrium (mm)", "Endometrium (mm)", "number")
+            new Feature("age", "Age (years)", "Age (yrs)", "number", 20, 48),
+            new Feature("weightKg", "Weight (kg)", "Weight (Kg)", "number", 31, 108),
+            new Feature("heightCm", "Height (cm)", "Height(Cm)", "number", 137, 180),
+            new Feature("bmi", "BMI", "BMI", "number", 12.42, 38.9),
+            new Feature("bloodGroup", "Blood group (code)", "Blood Group", "number", 11, 18),
+            new Feature("pulseRate", "Pulse rate (bpm)", "Pulse rate(bpm)", "number", 40, 120),
+            new Feature("rr", "Respiratory rate (breaths/min)", "RR (breaths/min)", "number", 16, 28),
+            new Feature("hb", "Haemoglobin (g/dl)", "Hb(g/dl)", "number", 8.5, 14.8),
+            new Feature("cycle", "Cycle (R/I)", "Cycle(R/I)", "number", 2, 5),
+            new Feature("cycleLength", "Cycle length (days)", "Cycle length(days)", "number", 0, 12),
+            new Feature("marriageYears", "Marriage duration (years)", "Marraige Status (Yrs)", "number", 0, 30),
+            new Feature("pregnant", "Pregnant (0 = No, 1 = Yes)", "Pregnant(Y/N)", "number", 0, 1),
+            new Feature("abortions", "No. of abortions", "No. of aborptions", "number", 0, 5),
+            new Feature("betaHcg1", "Beta-HCG I (mIU/mL)", "I   beta-HCG(mIU/mL)", "number", 1.3, 32461),
+            new Feature("betaHcg2", "Beta-HCG II (mIU/mL)", "II    beta-HCG(mIU/mL)", "number", 0.99, 25000),
+            new Feature("fsh", "FSH (mIU/mL)", "FSH(mIU/mL)", "number", 0.21, 5052),
+            new Feature("lh", "LH (mIU/mL)", "LH(mIU/mL)", "number", 0.02, 2018),
+            new Feature("fshLh", "FSH/LH ratio", "FSH/LH", "number", 0, 1372.83),
+            new Feature("hip", "Hip (inch)", "Hip(inch)", "number", 26, 48),
+            new Feature("waist", "Waist (inch)", "Waist(inch)", "number", 24, 47),
+            new Feature("waistHipRatio", "Waist:Hip ratio", "Waist:Hip Ratio", "number", 0.76, 0.98),
+            new Feature("tsh", "TSH (mIU/L)", "TSH (mIU/L)", "number", 0.04, 65),
+            new Feature("amh", "AMH (ng/mL)", "AMH(ng/mL)", "number", 0.1, 66),
+            new Feature("prl", "PRL (ng/mL)", "PRL(ng/mL)", "number", 0.4, 128.24),
+            new Feature("vitD3", "Vitamin D3 (ng/mL)", "Vit D3 (ng/mL)", "number", 0, 6014.66),
+            new Feature("prg", "PRG (ng/mL)", "PRG(ng/mL)", "number", 0.05, 85),
+            new Feature("rbs", "Random blood sugar (mg/dl)", "RBS(mg/dl)", "number", 60, 350),
+            new Feature("weightGain", "Weight gain (0 = No, 1 = Yes)", "Weight gain(Y/N)", "number", 0, 1),
+            new Feature("hairGrowth", "Hair growth (0 = No, 1 = Yes)", "hair growth(Y/N)", "number", 0, 1),
+            new Feature("skinDarkening", "Skin darkening (0 = No, 1 = Yes)", "Skin darkening (Y/N)", "number", 0, 1),
+            new Feature("hairLoss", "Hair loss (0 = No, 1 = Yes)", "Hair loss(Y/N)", "number", 0, 1),
+            new Feature("pimples", "Pimples (0 = No, 1 = Yes)", "Pimples(Y/N)", "number", 0, 1),
+            new Feature("fastFood", "Fast food (0 = No, 1 = Yes)", "Fast food (Y/N)", "number", 0, 1),
+            new Feature("regularExercise", "Regular exercise (0 = No, 1 = Yes)", "Reg.Exercise(Y/N)", "number", 0, 1),
+            new Feature("bpSystolic", "BP systolic (mmHg)", "BP _Systolic (mmHg)", "number", 80, 180),
+            new Feature("bpDiastolic", "BP diastolic (mmHg)", "BP _Diastolic (mmHg)", "number", 40, 120),
+            new Feature("follicleL", "Follicle count (left)", "Follicle No. (L)", "number", 0, 22),
+            new Feature("follicleR", "Follicle count (right)", "Follicle No. (R)", "number", 0, 20),
+            new Feature("avgFollicleSizeL", "Avg. follicle size (left, mm)", "Avg. F size (L) (mm)", "number", 0, 24),
+            new Feature("avgFollicleSizeR", "Avg. follicle size (right, mm)", "Avg. F size (R) (mm)", "number", 0, 24),
+            new Feature("endometrium", "Endometrium (mm)", "Endometrium (mm)", "number", 0, 18)
     );
 
     /** Number of input features. */

@@ -14,8 +14,12 @@ import java.util.List;
  * <p>Pipeline (project methodology, fitted on the TRAIN split only — no
  * leakage from the test split):</p>
  * <ol>
- *   <li><b>Mean imputation</b> — a missing value is replaced by the training
- *       mean of that feature. Only 2 cells in the whole dataset are genuinely
+ *   <li><b>Median imputation</b> — a missing value is replaced by the training
+ *       median of that feature. The median, not the mean: a few extreme
+ *       outliers (FSH max 5052, Vitamin D3 max 6014.66) inflate the raw mean
+ *       far above the typical value, so a blank FSH filled with the mean
+ *       would sit +3.9 SD above the clipped mean and push the prediction
+ *       toward PCOS. Only 2 cells in the whole dataset are genuinely
  *       missing (Marriage duration: 1, Fast food: 1); the 539 empty cells
  *       belong to the dropped junk column {@code Unnamed: 44}.</li>
  *   <li><b>Outlier clipping (winsorising)</b> — each feature is clipped to its
@@ -39,10 +43,10 @@ public class Preprocessing {
         public String key;
         public String label;
         public String type;
-        /** Observed min / max on the full dataset (raw scale, before clipping) — used for /api/features. */
+        /** Observed min / max on the full dataset (raw scale, before clipping) — descriptive statistics only; the ranges /api/features returns (and /api/predict enforces) come from FeatureSpec. */
         public double min;
         public double max;
-        /** Training mean on the raw scale — also the /api/features default and the mean-imputation value. */
+        /** Training median on the raw scale — also the /api/features default and the median-imputation value. */
         @JsonProperty("default")
         public double defaultValue;
         /** Mean / std of the imputed + clipped TRAIN data (standardisation parameters). */
@@ -76,7 +80,7 @@ public class Preprocessing {
                 .orElseThrow(() -> new IllegalArgumentException("Unknown feature: " + key));
     }
 
-    /** Impute (training mean) -> clip -> standardise one raw feature value. */
+    /** Impute (training median) -> clip -> standardise one raw feature value. */
     public double transform(int featureIndex, double rawValue) {
         FeatureStats s = features.get(featureIndex);
         double v = Double.isNaN(rawValue) ? s.defaultValue : rawValue;

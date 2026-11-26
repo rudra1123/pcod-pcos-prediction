@@ -56,20 +56,20 @@ npm run preview      # serves the built output on http://localhost:5173
   Weight gain, Hair growth, Skin darkening, Hair loss, Pimples, Fast food,
   Regular exercise** (marked `*`); the
   form lists any missing required fields before sending. Any other field may
-  be left blank: it is sent as `null` so the backend mean-imputes it, and it
+  be left blank: it is sent as `null` so the backend median-imputes it, and it
   is counted in the result (see below). **Empty input is blocked outright:**
   with no values entered at all, no request is sent — a prediction from no
   data would not be meaningful. A backend 400 (e.g. its own missing-field
   list, once live) is shown verbatim. **Clear all** empties the form so this
-  can be tried; **Reset** restores dataset-average defaults.
-- The form is prefilled with **Sample Patient 2** (a true PCOS case from
-  `../data/sample_patients.json`). Buttons load the PCOS sample, the No-PCOS
-  sample (Sample Patient 1), or reset to dataset-average defaults. Both
+  can be tried; **Reset** restores dataset-median defaults.
+- The form starts with **Sample Patient 2** values (a true PCOS case from
+  `../data/sample_patients.json`) but the patient name field is left blank — a stored name must be one the user typed. Buttons load the PCOS sample, the No-PCOS
+  sample (Sample Patient 1), or reset to dataset-median defaults. Both
   samples match `sample_patients.json` field by field.
 - **Predict** sends `POST /api/predict` with a flat JSON object of the 41
-  clean keys (blank fields as `null`) and shows a result card: "PCOS Detected" (red) or
-  "No PCOS Detected" (green), probability/confidence as a percentage with a
-  bar, and the model name + its accuracy. Errors (e.g. backend down) are
+  clean keys (blank fields as `null`) and shows a result card: "High risk — refer for testing" (red) or
+  "Low risk" (green) — screening language, not a diagnosis — probability/confidence as a percentage with a
+  ring and a gauge with the decision threshold marked, and the model name + its accuracy. Errors (e.g. backend down) are
   shown in plain text.
 - **Result card:** shows **"X of 41 fields were imputed"** —
   the backend's `imputedCount` when it returns one, otherwise the count of

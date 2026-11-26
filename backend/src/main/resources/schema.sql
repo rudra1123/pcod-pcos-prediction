@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS prediction_records (
     probability      DOUBLE       NOT NULL,
     confidence       DOUBLE       NOT NULL,
     model            VARCHAR(64)  NOT NULL,
+    model_version    VARCHAR(16)  NULL,
     patient_name     VARCHAR(100) NULL,
     patient_id       VARCHAR(64)  NULL,
     created_at       TIMESTAMP    NOT NULL,
@@ -27,3 +28,5 @@ CREATE TABLE IF NOT EXISTS prediction_records (
 --   ALTER TABLE prediction_records ADD COLUMN imputed_fields_json TEXT NULL;
 -- Existing deployments (table created before patient_name / patient_id existed):
 --   ALTER TABLE prediction_records ADD COLUMN patient_name VARCHAR(100) NULL, ADD COLUMN patient_id VARCHAR(64) NULL;
+-- Existing deployments (table created before model_version existed):
+--   ALTER TABLE prediction_records ADD COLUMN model_version VARCHAR(16) NULL;

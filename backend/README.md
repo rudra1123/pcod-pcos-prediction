@@ -116,10 +116,10 @@ dataset by Prasoon Kottarathil, "Polycystic Ovary Syndrome (PCOS)"
   clean snake_case keys, in training order). The screening model uses the 23
   non-invasive ones of these (see `FeatureSpec.SCREENING_FEATURES`).
 - Missing data: only 2 cells are genuinely missing (Marriage duration: 1,
-  Fast food: 1) — filled with the training mean. Two further cells are
+  Fast food: 1) — filled with the training median. Two further cells are
   malformed in the source file and were found while loading: beta-HCG II =
   `1.99.` (trailing dot, read as 1.99) and AMH = `a` (stray letter, treated
-  as missing and mean-imputed). Both are logged by the trainer.
+  as missing and median-imputed). Both are logged by the trainer.
 - Outliers: FSH up to 5052, Vitamin D3 up to 6014.66, beta-HCG up to
   32460.97 — handled by clipping (see Method).
 
@@ -141,9 +141,11 @@ verified 541 rows only, and no larger patient count is claimed anywhere.
 
 - **Split:** stratified 80/20 train/test, seed 42. Train 433 rows
   (291 without PCOS, 142 with PCOS); test 108 rows (73 without, 35 with).
-  The test split is evaluated exactly **once**, after all tuning.
-- **Preprocessing, fitted on training data only:** (1) mean imputation for
-  missing values; (2) outlier clipping to the 1st/99th training percentiles
+  The test split is evaluated once per model, after all tuning (the extra
+  analyses — repeated CV, McNemar, ablation, calibration — reuse those same
+  test probabilities or the same split; they are not new tuning).
+- **Preprocessing, fitted on training data only:** (1) median imputation for
+  missing values (the median, not the mean: a few extreme outliers — FSH max 5052, Vitamin D3 max 6014.66 — inflate the raw mean far above the typical value, so a blank FSH filled with the mean would sit +3.9 SD above the clipped mean and push the prediction toward PCOS); (2) outlier clipping to the 1st/99th training percentiles
   per feature; (3) standardisation, z = (x − mean) / std, with mean/std from
   the imputed + clipped training data. This is the same arithmetic as
   Smile's `Standardizer` (per-column mean and standard deviation); it is
@@ -330,11 +332,11 @@ and records how many were used in `metrics.json` → `verifiedRowsUsed`
 (0 in the shipped run — no verified rows existed yet).
 
 A verified row is used only if its stored inputs are complete: each
-prediction record stores which fields were mean-imputed at prediction
+prediction record stores which fields were median-imputed at prediction
 time (`imputed_fields_json` column, also returned as `imputedFields` in
 the history JSON). **Verified rows with any imputed field are excluded
 from retraining** — a doctor can verify the outcome, but the stored
-feature values for the imputed fields are training averages, not the
+feature values for the imputed fields are training medians, not the
 patient's real values, so treating them as ground truth would teach the
 model fake data. Rows written before this field was tracked (null) are
 excluded too, for the same reason: they cannot be proven complete.
@@ -383,7 +385,7 @@ falls back to the models baked into the jar and logs a warning.
 ### Privacy
 
 Prediction records are stored in the project's own MySQL database and
-nowhere else. Patient data must be **anonymised before entry**, and
+nowhere else. The form collects an optional patient name and ID — they are stored only with the history record, never sent to the model and never used in training; leave them blank and nothing identifying is stored. Each record also carries the model version that made the prediction, so a retrain is auditable. Patient data must be **anonymised before entry**, and
 **consent must be obtained** for storing it — real deployment would need a
 consent workflow, access control on the history endpoints, and retention
 rules. This project follows India's **Digital Personal Data Protection
@@ -436,9 +438,9 @@ java -jar target/pcod-prediction-backend-1.0.0.jar \
 | `GET /api/health` | `{"status":"UP","service":"PCOD Prediction API"}` |
 | `GET /api/models` | 6 models with measured `{name, accuracy, precision, recall, f1, rocAuc, prAuc, brierScore, cvAccuracy, confusionMatrix, rocCurve, threshold, hyperparameters, nFeatures, mode, screening, ...}` |
 | `GET /api/metrics` | The full `metrics.json`: models, baselines, thresholds, importances, `cvLog`, `verifiedRowsUsed` |
-| `GET /api/features` | The 41 features as `{key, label, min, max, default, type, screening, required}` for the frontend form (`default` = training mean; `screening` = used by the screening model; `required` = one of the 11 required fields) |
+| `GET /api/features` | The 41 features as `{key, label, min, max, default, type, screening, required}` for the frontend form (`default` = training median; `screening` = used by the screening model; `required` = one of the 11 required fields) |
 | `GET /api/models/{name}/importance` | Top feature importances for Random Forest, Gradient Boosting and the screening model (`{model, importance: [{feature, importance}]}`); 404 for Bagging/AdaBoost/voting/baselines, which have no impurity importance |
-| `POST /api/predict` | Prediction from the deployed model. Body: flat JSON with the 41 keys, or `{"features": {...}}`. Query `?mode=full` (default) or `?mode=screening`. **11 non-invasive fields are required** (age, bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise) — missing any returns 400 listing them. Other missing features default to training means, and the response reports `imputedCount` / `imputedFields` (how many of the 41 fields were imputed, and which). Returns `{"prediction": 0\|1, "label", "probability", "confidence", "model", "modelAccuracy", "modelAccuracyCiLow", "modelAccuracyCiHigh", "modelAccuracyNote", "mode", "threshold", "imputedCount", "imputedOf", "imputedFields", "warning?"}`. `confidence` is the probability of the **predicted** class — for a screening prediction below 0.5 it is the (low) PCOS probability itself, not `max(p, 1-p)`. `modelAccuracy` is the model's test accuracy on the 108-row held-out set (with its 95% CI and a note saying so) — it describes the model, not this one prediction. When 21+ fields were imputed the response also carries a `warning` that the result rests mostly on training averages. Non-numeric values return 400 with a clear message, never 500. Empty `{}` returns 400 (it must not return a confident prediction). |
+| `POST /api/predict` | Prediction from the deployed model. Body: flat JSON with the 41 keys, or `{"features": {...}}`. Query `?mode=full` (default) or `?mode=screening`. **11 non-invasive fields are required** (age, bmi, cycle, cycleLength, weightGain, hairGrowth, skinDarkening, hairLoss, pimples, fastFood, regularExercise) — missing any returns 400 listing them. Other missing features default to training medians, and the response reports `imputedCount` / `imputedFields` (how many of the 41 fields were imputed, and which). A value outside the plausible range for its feature (FeatureSpec) is rejected with 400 — age 500 or FSH 9000 must not reach the model. POST /api/predict is rate-limited to 120 requests/minute per IP. Returns `{"prediction": 0\|1, "label", "probability", "confidence", "model", "modelAccuracy", "modelAccuracyCiLow", "modelAccuracyCiHigh", "modelAccuracyNote", "mode", "threshold", "imputedCount", "imputedOf", "imputedFields", "warning?"}`. `confidence` is the probability of the **predicted** class — for a screening prediction below 0.5 it is the (low) PCOS probability itself, not `max(p, 1-p)`. `modelAccuracy` is the model's test accuracy on the 108-row held-out set (with its 95% CI and a note saying so) — it describes the model, not this one prediction. When 21+ fields were imputed the response also carries a `warning` that the result rests mostly on training medians. Non-numeric values return 400 with a clear message, never 500. Empty `{}` returns 400 (it must not return a confident prediction). |
 | `GET /api/predictions?limit=20` | Prediction history, latest first (limit 1–100, default 20). Requires the `X-Admin-Key` header (401 without/wrong key; 503 if `ADMIN_KEY` is unset). 503 when the database is unavailable. |
 | `GET /api/predictions/{id}` | One history record. Requires the `X-Admin-Key` header (same 401/503 rules). 404 for an unknown id, 503 without a database. |
 | `PATCH /api/predictions/{id}/outcome` | Set the doctor-verified outcome: body `{"verifiedOutcome": 0\|1}`. Requires the `X-Admin-Key` header (same 401/503 rules). Re-PATCHing overwrites the previous value (latest value wins; `verifiedAt` updated). 400 for any other value, 404 for an unknown id, 503 without a database. |

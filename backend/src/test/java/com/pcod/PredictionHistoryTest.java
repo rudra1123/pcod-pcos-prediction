@@ -145,7 +145,7 @@ class PredictionHistoryTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].prediction").value(1))
-                .andExpect(jsonPath("$[0].label").value("PCOS Detected"))
+                .andExpect(jsonPath("$[0].label").value("High risk — refer for testing"))
                 .andExpect(jsonPath("$[0].model").isString())
                 .andExpect(jsonPath("$[0].features.age").value(33))
                 .andExpect(jsonPath("$[0].features.endometrium").value(10.0))

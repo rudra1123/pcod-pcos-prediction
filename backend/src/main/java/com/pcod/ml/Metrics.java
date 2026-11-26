@@ -94,9 +94,13 @@ public class Metrics {
 
     /**
      * Decision-threshold report for one deployed model. The threshold is
-     * chosen on TRAIN cross-validation out-of-fold probabilities ONLY
-     * (maximising F1, ties broken toward the lower threshold / higher
-     * recall — recall matters most for screening), never on the test set.
+     * chosen on TRAIN cross-validation out-of-fold probabilities ONLY,
+     * never on the test set. The deployed (full) model maximises F1 (ties
+     * broken toward the lower threshold / higher recall); the screening
+     * model instead takes the highest threshold that still reaches at
+     * least 90% recall on the out-of-fold probabilities — for a screening
+     * tool a missed case costs more than a false alarm, so recall is
+     * constrained first and precision is maximised under that constraint.
      * The test numbers below are then measured once, at that fixed
      * threshold, alongside the same test numbers at the default 0.5 so the
      * trade-off is visible.
@@ -130,6 +134,110 @@ public class Metrics {
      * mean anything.
      */
     public List<ModelMetrics> baselines = new ArrayList<>();
+    /**
+     * Model version of this training run (e.g. "1.2.0"). Recorded on every
+     * prediction row (PredictionRecord.modelVersion) so a retrain is
+     * auditable: any stored prediction can be traced to the model that
+     * made it. Bumped when the pipeline changes (imputation rule,
+     * threshold rule, library versions), not on every retrain.
+     */
+    public String modelVersion;
+    /** One model in the repeated stratified CV (10 repeats x 5 folds, all 541 rows). */
+    public static class RepeatedCvEntry {
+        public String model;
+        public int repeats = 10;
+        public int folds = 5;
+        public double accuracyMean;
+        public double accuracySd;
+        public double precisionMean;
+        public double precisionSd;
+        public double recallMean;
+        public double recallSd;
+        public double f1Mean;
+        public double f1Sd;
+        public double rocAucMean;
+        public double rocAucSd;
+
+        public RepeatedCvEntry() {}
+    }
+
+    /**
+     * Repeated stratified cross-validation (10 repeats x 5 folds) on ALL
+     * 541 rows, with the tuned hyperparameters held fixed (no re-tuning
+     * per repeat): the mean +/- SD of each metric across the 10 repeats.
+     * With a 108-row test set the held-out CI is 12 points wide; this is
+     * the tighter, more stable estimate. The held-out 80/20 split is kept
+     * as a secondary check (see the per-model test metrics).
+     */
+    public List<RepeatedCvEntry> repeatedCv = new ArrayList<>();
+
+    /** One McNemar paired comparison on the held-out test set. */
+    public static class McNemarEntry {
+        public String comparison;
+        /** Voting correct, other wrong. */
+        public int b;
+        /** Voting wrong, other correct. */
+        public int c;
+        /** Chi-square with Edwards continuity correction (1 df). */
+        public double chiSquare;
+        /** Exact two-sided binomial p-value on the discordant pairs. */
+        public double pValue;
+        public String method = "McNemar exact test (two-sided binomial on discordant pairs)";
+
+        public McNemarEntry() {}
+    }
+
+    /** McNemar paired tests: voting ensemble vs each baseline / best single model. */
+    public List<McNemarEntry> mcnemar = new ArrayList<>();
+
+    /** One feature-group ablation variant (same split, fixed tuned hyperparameters). */
+    public static class AblationEntry {
+        public String variant;
+        public int nFeatures;
+        /** Voting-ensemble test accuracy / recall at threshold 0.5. */
+        public double votingAccuracy;
+        public double votingRecall;
+        /** Gradient Boosting test accuracy / recall at threshold 0.5. */
+        public double gbmAccuracy;
+        public double gbmRecall;
+
+        public AblationEntry() {}
+    }
+
+    /**
+     * Feature-group ablation: the same protocol on feature subsets, so the
+     * "follicle counts are near-diagnostic" claim becomes a measured
+     * result instead of an impression.
+     */
+    public List<AblationEntry> ablation = new ArrayList<>();
+
+    /** One reliability-curve bin: mean predicted probability vs observed frequency. */
+    public static class CalibrationBin {
+        public double binLow;
+        public double binHigh;
+        public int count;
+        public double meanPredicted;
+        public double observedFrequency;
+
+        public CalibrationBin() {}
+    }
+
+    /** Reliability-curve data for one model (test set and out-of-fold). */
+    public static class CalibrationReport {
+        public String model;
+        public List<CalibrationBin> testBins = new ArrayList<>();
+        public List<CalibrationBin> oofBins = new ArrayList<>();
+
+        public CalibrationReport() {}
+    }
+
+    /**
+     * Calibration (reliability curve) for the voting ensemble: binned
+     * predicted probabilities against the observed PCOS frequency. A Brier
+     * score alone does not show calibration — this does. The plot is built
+     * from these bins.
+     */
+    public CalibrationReport calibration;
     /** Deployed model: best TRAIN-CV single model, or "Soft Voting Ensemble". */
     public String bestModel;
     /** Test accuracy of the deployed model, at its tuned decision threshold. */

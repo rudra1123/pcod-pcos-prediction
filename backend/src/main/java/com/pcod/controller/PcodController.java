@@ -33,8 +33,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -57,7 +59,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *       feature importances, thresholds, voting metrics)</li>
  *   <li>GET  /api/models/{name}/importance — feature importance for one
  *       tree model (Random Forest / Gradient Boosting / screening)</li>
- *   <li>GET  /api/features — the 41 input features (label, range, training-mean default)</li>
+ *   <li>GET  /api/features — the 41 input features (label, range, training-median default)</li>
  *   <li>POST /api/predict  — prediction from the deployed model (also saved
  *       to MySQL as a {@code PredictionRecord} when the database is available;
  *       a database failure never breaks the prediction response).
@@ -173,7 +175,13 @@ public class PcodController {
                     .body(Map.of("error", "ADMIN_KEY is not set — this endpoint is disabled "
                             + "(fail-closed). Set the ADMIN_KEY environment variable and restart."));
         }
-        if (!adminKey.equals(providedKey)) {
+        // Constant-time comparison: String.equals short-circuits on the
+        // first differing byte, which leaks the key byte-by-byte through
+        // timing. MessageDigest.isEqual compares in constant time (and is
+        // null-safe here — a missing header is simply "wrong").
+        if (providedKey == null
+                || !MessageDigest.isEqual(adminKey.getBytes(StandardCharsets.UTF_8),
+                        providedKey.getBytes(StandardCharsets.UTF_8))) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Missing or invalid X-Admin-Key header. "
                             + "This endpoint requires the admin key (ADMIN_KEY)."));
@@ -273,17 +281,22 @@ public class PcodController {
                     .body(Map.of("error", "Models are not loaded yet — train first (see README)."));
         }
         List<Map<String, Object>> out = new ArrayList<>();
-        for (Preprocessing.FeatureStats f : store.getPreprocessing().features) {
+        // Ranges come from FeatureSpec (the single source of truth, shared
+        // with the /api/predict validation below and with the frontend's
+        // fallback copy), so the UI shows exactly the bounds the server
+        // enforces. The median default comes from the fitted preprocessing.
+        for (FeatureSpec.Feature spec : FeatureSpec.FEATURES) {
+            Preprocessing.FeatureStats f = store.getPreprocessing().stats(spec.key());
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("key", f.key);
-            m.put("label", f.label);
-            m.put("min", f.min);
-            m.put("max", f.max);
+            m.put("key", spec.key());
+            m.put("label", spec.label());
+            m.put("min", spec.min());
+            m.put("max", spec.max());
             m.put("default", f.defaultValue);
-            m.put("type", f.type);
+            m.put("type", spec.type());
             // Screening-mode membership + whether /api/predict requires this field.
-            m.put("screening", FeatureSpec.isScreening(f.key));
-            m.put("required", FeatureSpec.isRequired(f.key));
+            m.put("screening", FeatureSpec.isScreening(spec.key()));
+            m.put("required", FeatureSpec.isRequired(spec.key()));
             out.add(m);
         }
         return ResponseEntity.ok(out);
@@ -296,10 +309,13 @@ public class PcodController {
      * missing any of them is a 400 listing the missing fields, because a
      * prediction from almost no data would be meaningless and an empty
      * request must never return a confident prediction. Other missing
-     * features default to the training mean (mean imputation); the response
+     * features default to the training median (median imputation); the response
      * reports how many of the 41 fields were imputed
      * ({@code imputedCount}) and which ones ({@code imputedFields}).
-     * A present-but-non-numeric value is a 400, never a 500.
+     * A present-but-non-numeric value is a 400, never a 500. A value
+     * outside the plausible range for its feature (see
+     * {@link FeatureSpec}) is also a 400 — age 500 or FSH 9000 must be
+     * rejected, not silently clipped into the model.
      * {@code ?mode=screening} uses the 23-feature screening model instead
      * of the deployed full model.
      *
@@ -307,13 +323,14 @@ public class PcodController {
      * 108-row held-out test set — it describes the model, not this one
      * prediction (see {@code modelAccuracyNote} and the 95% CI fields).
      * When 21 or more fields were imputed, the response also carries a
-     * {@code warning}: the result then rests mostly on training-mean
+     * {@code warning}: the result then rests mostly on training-median
      * values, not on the patient's own data.</p>
      */
     @PostMapping("/predict")
     @Operation(summary = "Predict PCOS for one patient",
-            description = "11 non-invasive fields are required; the other 30 default to training means "
-                    + "(reported as imputedCount/imputedFields). mode=screening uses the 23-feature screening model. "
+            description = "11 non-invasive fields are required; the other 30 default to training medians "
+                    + "(reported as imputedCount/imputedFields). Values outside the plausible range for a "
+                    + "feature are rejected with 400. mode=screening uses the 23-feature screening model. "
                     + "modelAccuracy is the model's test accuracy (108-row test set), not this prediction's accuracy.")
     public ResponseEntity<?> predict(
             @RequestBody(required = false) JsonNode body,
@@ -350,12 +367,20 @@ public class PcodController {
             String key = FeatureSpec.FEATURES.get(j).key();
             JsonNode v = featuresNode.get(key);
             if (v == null || v.isNull()) {
-                raw[j] = Double.NaN; // missing -> training mean (mean imputation)
+                raw[j] = Double.NaN; // missing -> training median (median imputation)
                 imputedFields.add(key);
             } else if (!v.isNumber() || !Double.isFinite(v.asDouble())) {
                 return badRequest("Feature '" + key + "' must be a number, got: " + v);
             } else {
-                raw[j] = v.asDouble();
+                // Plausible-range check (FeatureSpec): an absurd value must
+                // be rejected, not silently clipped into the model.
+                double d = v.asDouble();
+                FeatureSpec.Feature spec = FeatureSpec.FEATURES.get(j);
+                if (d < spec.min() || d > spec.max()) {
+                    return badRequest("Feature '" + key + "' is out of range: expected between "
+                            + spec.min() + " and " + spec.max() + ", got " + d + ".");
+                }
+                raw[j] = d;
             }
         }
         ModelStore.Prediction p = store.predict(raw, mode);
@@ -383,7 +408,7 @@ public class PcodController {
         out.put("imputedFields", imputedFields);
         if (imputedFields.size() >= HIGH_IMPUTATION) {
             out.put("warning", "More than half of the 41 input fields were missing and were "
-                    + "filled with training averages — this result rests mostly on average "
+                    + "filled with the training median for each field — this result rests mostly on typical "
                     + "values, not on the patient's own data. Treat it with extra caution; "
                     + "it is not a diagnosis.");
         }
@@ -516,11 +541,13 @@ public class PcodController {
     /**
      * Stores the prediction just made. The features saved are the values the
      * model actually saw — a feature missing from the request is stored as
-     * its training mean — AND the list of which features were imputed is
+     * its training median — AND the list of which features were imputed is
      * stored alongside ({@code imputedFieldsJson}), so retraining can tell
-     * real measurements apart from mean-filled values. Any database failure
-     * is logged and swallowed: the prediction response has already been
-     * built and must still be returned.
+     * real measurements apart from median-filled values. The model version
+     * that made the prediction is stored too, so any row can be traced to
+     * the model that produced it. Any database failure is logged and
+     * swallowed: the prediction response has already been built and must
+     * still be returned.
      */
     private void saveHistory(double[] raw, ModelStore.Prediction p, List<String> imputedFields,
                              String patientName, String patientId) {
@@ -543,6 +570,7 @@ public class PcodController {
             record.setImputedFieldsJson(mapper.writeValueAsString(imputedFields));
             record.setPatientName(patientName);
             record.setPatientId(patientId);
+            record.setModelVersion(store.getMetrics().modelVersion);
             history.save(record);
         } catch (Exception e) {
             log.warn("Could not save prediction to database (prediction still returned): {}",
@@ -567,6 +595,7 @@ public class PcodController {
         out.put("probability", r.getProbability());
         out.put("confidence", r.getConfidence());
         out.put("model", r.getModel());
+        out.put("modelVersion", r.getModelVersion());
         out.put("createdAt", r.getCreatedAt() == null ? null : r.getCreatedAt().toString());
         // Doctor-verified outcome (null until a doctor records one).
         out.put("verifiedOutcome", r.getVerifiedOutcome());
@@ -610,8 +639,8 @@ public class PcodController {
      * <p>Retraining also appends doctor-verified prediction-history rows
      * (verified outcome filled in) to the TRAIN split. Unverified model
      * predictions are NEVER used as training data, and verified rows with
-     * any imputed (mean-filled) feature are excluded — their stored values
-     * are training means, not real measurements (see {@link #verifiedRows()}).</p>
+     * any imputed (median-filled) feature are excluded — their stored values
+     * are training medians, not real measurements (see {@link #verifiedRows()}).</p>
      */
     @PostMapping("/retrain")
     @Operation(summary = "Start an asynchronous retrain (admin key required)",
@@ -718,8 +747,8 @@ public class PcodController {
      * Doctor-verified prediction-history rows as training rows (features +
      * verified outcome). Only rows with a filled verified outcome are
      * returned, AND only rows whose features are all real measurements:
-     * a row with any imputed (mean-filled) feature is EXCLUDED — its stored
-     * feature values contain training means, and treating those as real
+     * a row with any imputed (median-filled) feature is EXCLUDED — its stored
+     * feature values contain training medians, and treating those as real
      * patient measurements would inject invented data into training.
      * Rows written before imputed-field tracking existed have no recorded
      * list, so they are excluded too (their features cannot be proven
@@ -743,7 +772,7 @@ public class PcodController {
                 }
                 if (!imputed.isEmpty()) {
                     log.warn("Skipping verified history row {} for retraining: {} feature(s) "
-                            + "were mean-imputed ({}), not real measurements.",
+                            + "were median-imputed ({}), not real measurements.",
                             r.getId(), imputed.size(), String.join(", ", imputed));
                     continue;
                 }
