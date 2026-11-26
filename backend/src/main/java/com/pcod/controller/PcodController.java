@@ -1,6 +1,6 @@
 package com.pcod.controller;
 
-import tools.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.pcod.db.PredictionRecord;
@@ -535,7 +535,7 @@ public class PcodController {
         out.put("id", r.getId());
         try {
             out.put("features", mapper.readValue(r.getFeaturesJson(), Map.class));
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             // Should not happen (we wrote the JSON ourselves); fall back to the raw string.
             out.put("features", r.getFeaturesJson());
         }
@@ -565,7 +565,7 @@ public class PcodController {
                 out.add(String.valueOf(o));
             }
             return out;
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.warn("Unparseable imputed-fields JSON on prediction {}: {}", r.getId(), e.getMessage());
             return null;
         }

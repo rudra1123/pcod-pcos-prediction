@@ -2,6 +2,7 @@ package com.pcod.ml;
 
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 import smile.model.cart.SplitRule;
 import smile.classification.AdaBoost;
 import smile.classification.Classifier;
@@ -128,7 +129,7 @@ public class TrainingService {
     /** Outcome of the CV tuning for one model. */
     public record TunedModel(ModelConfig config, double cvAccuracy) {}
 
-    private final ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+    private final ObjectMapper mapper = JsonMapper.builder().enable(SerializationFeature.INDENT_OUTPUT).build();
 
     // ------------------------------------------------------------------ CSV
 
