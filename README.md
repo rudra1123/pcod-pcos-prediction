@@ -39,16 +39,16 @@ Stratified 80/20 split, seed 42 (train 433 / test 108). Preprocessing was fitted
 
 | Model | Accuracy | Precision | Recall | F1 | ROC-AUC | TP/FP/FN/TN | 95% CI |
 |---|---|---|---|---|---|---|---|
-| **Soft Voting Ensemble — deployed** | **88.89%** | 92.59% | 71.43% | 80.65% | 0.927 | 25/2/10/71 | 82.4–94.4% |
-| Gradient Boosting | 87.96% | 84.38% | 77.14% | 80.60% | 0.945 | 27/5/8/68 | 81.5–93.5% |
-| Random Forest | 87.96% | 95.83% | 65.71% | 77.97% | 0.930 | 23/1/12/72 | 80.6–93.5% |
+| **Soft Voting Ensemble — deployed** | **88.89%** | 89.66% | 74.29% | 81.25% | 0.927 | 26/3/9/70 | 82.4–94.4% |
+| Gradient Boosting | 87.96% | 82.35% | 80.00% | 81.16% | 0.943 | 28/6/7/67 | 81.5–93.5% |
+| Random Forest | 88.89% | 96.00% | 68.57% | 80.00% | 0.930 | 24/1/11/72 | 81.5–94.4% |
 | Bagging | 87.04% | 86.21% | 71.43% | 78.13% | 0.900 | 25/4/10/69 | 80.6–92.6% |
-| AdaBoost | 86.11% | 81.25% | 74.29% | 77.61% | 0.928 | 26/6/9/67 | 78.7–91.7% |
-| Gradient Boosting — Screening (23 non-invasive features) | 82.41% | 72.22% | 74.29% | 73.24% | 0.879 | 26/10/9/63 | 75.0–88.9% |
+| AdaBoost | 87.04% | 92.00% | 65.71% | 76.67% | 0.919 | 23/2/12/71 | 79.6–92.6% |
+| Gradient Boosting — Screening (23 non-invasive features) | 64.81% | 47.83% | 94.29% | 63.46% | 0.879 | 33/36/2/37 | 55.6–74.1% |
 
-Baselines (same split/CV): Majority class 67.59% · Logistic Regression 85.19% · Decision Tree 82.41% · SVM (Linear) 87.96% · KNN 84.26%.
+Baselines (same split/CV): Majority class 67.59% · Logistic Regression 85.19% · Decision Tree 82.41% · SVM (Linear) 88.89% · KNN 84.26%.
 
-**Note on accuracy:** the 99% target was not reached — the best measured test accuracy is 88.89% (train CV 91.92%). With only 108 test rows the 95% CI is wide (82.4–94.4%), so 86% vs 89% is a difference of 2–3 patients. The screening model trades precision for recall (threshold 0.30, tuned on CV only). The shipped models were trained on the 433-row train split only, so the reported test metrics describe the exact model being served.
+**Note on accuracy:** the 99% target was not reached — the best measured test accuracy is 88.89% (train CV 91.92%). With only 108 test rows the 95% CI is wide (82.4–94.4%), so 86% vs 89% is a difference of 2–3 patients. The screening model trades precision for recall (threshold 0.08, chosen for ≥90% out-of-fold recall — it catches 94.29% of cases but flags about half of healthy patients; see MODEL_CARD.md). The shipped models were trained on the 433-row train split only, so the reported test metrics describe the exact model being served.
 
 ## How to run
 
@@ -114,10 +114,10 @@ curl -X POST http://localhost:8080/api/predict -H 'Content-Type: application/jso
 Response (verified live):
 
 ```json
-{"prediction":1,"label":"High risk — refer for testing","probability":0.8453,"confidence":0.8453,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.55,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
+{"prediction":1,"label":"High risk — refer for testing","probability":0.8493,"confidence":0.8493,"model":"Soft Voting Ensemble","modelAccuracy":0.8889,"modelAccuracyCiLow":0.8241,"modelAccuracyCiHigh":0.9444,"modelAccuracyNote":"Test accuracy of Soft Voting Ensemble on the 108-row held-out test set (95% CI 82.4%–94.4%); it describes the model, not this individual prediction.","mode":"full","threshold":0.5,"imputedCount":0,"imputedOf":41,"imputedFields":[]}
 ```
 
-Screening mode (`?mode=screening`) on the same patient returns `0` (probability 0.1033 < threshold 0.30) — its non-invasive profile is mild and the case is only visible via follicle counts / AMH. That is the trade-off of screening.
+Screening mode (`?mode=screening`) on the same patient returns `1` (probability 0.1033 > threshold 0.08) — the recall-target threshold catches this case from the non-invasive profile alone, at the cost of flagging about half of healthy patients. That is the trade-off of screening.
 
 ### Tests
 
@@ -139,6 +139,6 @@ Prediction records are stored only in the local MySQL database (`prediction_reco
 ## Limitations
 
 - 541 patients is a small dataset; the 99% accuracy target was not reached (best measured test accuracy 88.89%, 95% CI 82.4–94.4%). A larger verified labelled dataset would be needed to do better — none compatible was publicly available.
-- The screening (non-invasive) model is less accurate (82.41%) and misses cases that need lab/ultrasound findings.
+- The screening (non-invasive) model catches 94.29% of cases at its recall-target threshold but flags about half of healthy patients (precision 47.83%, accuracy 64.81%).
 - Single-centre region (10 hospitals in Kerala) and a single dataset — no external validation cohort yet.
 - The API is a screening aid, not a diagnosis; a clinician's judgement is required for any real decision.
