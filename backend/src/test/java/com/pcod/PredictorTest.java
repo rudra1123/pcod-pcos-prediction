@@ -37,12 +37,13 @@ class PredictorTest {
             18.0, 18.0, 8.5};
 
     // Dataset row 9 (true label 0): screening P(PCOS) ~= 0.258, prediction 1.
-    // (Found by scanning all 541 rows through the screening model.)
+    // (Found by scanning all 541 rows through the screening model;
+    // re-scanned for the Smile 6.3.0 re-train, 2026-11-26.)
     private static final double[] SCREENING_BUG_CASE = {
-            36.0, 52.0, 150.0, 23.11111111, 15.0, 80.0, 20.0, 10.0, 4.0, 2.0, 4.0, 0.0, 0.0,
-            1.99, 1.99, 2.8, 1.51, 1.854304636, 40.0, 38.0, 0.95, 6.65, 1.61, 11.74,
-            27.7, 0.25, 125.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 110.0, 80.0, 1.0, 1.0,
-            14.0, 17.0, 2.5};
+            34.0, 64.0, 158.0, 25.63691716, 15.0, 73.0, 20.0, 11.8, 2.0, 6.0, 12.0, 1.0, 1.0,
+            289.36, 180.3, 6.98, 1.83, 3.81420765, 42.0, 34.0, 0.8095238095, 2.96, 1.4, 24.89,
+            56.9, 0.4, 110.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 120.0, 80.0, 3.0, 5.0,
+            12.0, 12.0, 10.0};
 
     @Test
     void fullModelPredictsSamplePatientsCorrectly() {
@@ -85,15 +86,15 @@ class PredictorTest {
 
     @Test
     void screeningConfidenceIsProbabilityOfPredictedClass() {
-        // Dataset row 9 (true label 0): screening P(PCOS) ~= 0.258 — above
-        // the 0.25 threshold, so the prediction is PCOS, but below 0.5.
-        // Confidence must be 0.258 (the PREDICTED class's probability), not
-        // max(p, 1-p) = 0.742, which is the No-PCOS side's probability.
-        // The old formula got this wrong for 64 of the 219 screening
-        // PCOS predictions in the dataset.
+        // Dataset row 157 (true label 0): screening P(PCOS) ~= 0.381 — above
+        // the 0.30 threshold, so the prediction is PCOS, but below 0.5.
+        // Confidence must be 0.381 (the PREDICTED class's probability), not
+        // max(p, 1-p) = 0.619, which is the No-PCOS side's probability.
+        // The old formula got this wrong for the 38 screening PCOS
+        // predictions in the dataset whose probability sits below 0.5.
         ModelStore.Prediction p = store.predict(SCREENING_BUG_CASE, "screening");
-        assertEquals(1, p.prediction(), "p ~= 0.258 clears the 0.25 screening threshold");
-        assertTrue(p.probability() > 0.25 && p.probability() < 0.5,
+        assertEquals(1, p.prediction(), "p ~= 0.381 clears the 0.30 screening threshold");
+        assertTrue(p.probability() > p.threshold() && p.probability() < 0.5,
                 "this case must sit between threshold and 0.5, was " + p.probability());
         assertEquals(p.probability(), p.confidence(), 1e-9,
                 "confidence must be P(PCOS) when the prediction is PCOS, even below 0.5");

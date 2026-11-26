@@ -36,7 +36,7 @@ pcod-working-project/
 │   │   └── trainer/ModelTrainer.java   # reproducible training (CLI)
 │   ├── src/main/resources/
 │   │   ├── application.properties
-│   │   ├── metrics.json       # measured metrics for every model (run 8)
+│   │   ├── metrics.json       # measured metrics for every model (Smile 6.3.0 re-train, 2026-11-26)
 │   │   ├── models/            # trained Smile models (*.ser) + MODEL_CARD.md
 │   │   ├── preprocessing.json # fitted imputer means, clip bounds, scaler
 │   │   └── schema.sql         # prediction_records table
@@ -79,21 +79,21 @@ and `backend/src/main/resources/models/MODEL_CARD.md`.
 
 | Model | Accuracy | Precision | Recall | F1 | ROC-AUC | TP/FP/FN/TN | 95% CI |
 |---|---|---|---|---|---|---|---|
-| **Soft Voting Ensemble — deployed** | **88.89%** | 89.66% | 74.29% | 81.25% | 0.925 | 26/3/9/70 | 82.4–94.4% |
-| Gradient Boosting (best single) | 88.89% | 87.10% | 77.14% | 81.82% | 0.933 | 27/4/8/69 | 82.4–94.4% |
-| Random Forest | 87.04% | 92.00% | 65.71% | 76.67% | 0.925 | 23/2/12/71 | 79.6–93.5% |
+| **Soft Voting Ensemble — deployed** | **88.89%** | 92.59% | 71.43% | 80.65% | 0.927 | 25/2/10/71 | 82.4–94.4% |
+| Gradient Boosting | 87.96% | 84.38% | 77.14% | 80.60% | 0.945 | 27/5/8/68 | 81.5–93.5% |
+| Random Forest | 87.96% | 95.83% | 65.71% | 78.02% | 0.930 | 23/1/12/72 | 80.6–93.5% |
 | Bagging | 87.04% | 86.21% | 71.43% | 78.13% | 0.900 | 25/4/10/69 | 80.6–92.6% |
-| AdaBoost | 86.11% | 85.71% | 68.57% | 76.19% | 0.917 | 24/4/11/69 | 78.7–92.6% |
-| Gradient Boosting — Screening (23 non-invasive features) | 82.41% | 69.05% | **82.86%** | 75.32% | 0.886 | 29/13/6/60 | 75.0–88.9% |
+| AdaBoost | 86.11% | 81.25% | 74.29% | 77.61% | 0.928 | 26/6/9/67 | 78.7–91.7% |
+| Gradient Boosting — Screening (23 non-invasive features) | 82.41% | 72.22% | 74.29% | 73.24% | 0.880 | 26/10/9/63 | 75.0–88.9% |
 
 Baselines (same split/CV): Majority class 67.59% · Logistic Regression 85.19% ·
-Decision Tree 82.41% · SVM (Linear) 83.33% · KNN 84.26%.
+Decision Tree 82.41% · SVM (Linear) 87.96% · KNN 84.26%.
 
 **Honest note on accuracy:** the 99% target was **not** reached. The measured
-best test accuracy is 88.89% (train CV 93.07%). With only 108 test rows, the
+best test accuracy is 88.89% (train CV 91.92%). With only 108 test rows, the
 95% confidence interval is wide (82.4–94.4%) and 86% vs 89% is a difference of
 2–3 patients — not significant. The screening model trades precision for
-recall (threshold 0.25, tuned on CV only): recall rises from 60.00% to 82.86%.
+recall (threshold 0.30, tuned on CV only): recall rises from 62.86% to 74.29%.
 The screening model misses some cases that are only visible via follicle
 counts / AMH (e.g. sample patient 2) — documented in `backend/README.md`.
 
@@ -108,7 +108,7 @@ sharply between the classes (follicleL mean 9.79 with PCOS vs 4.35 without;
 follicleR 10.76 vs 4.64) — Rotterdam-adjacent morphology features. The
 23-feature screening model (no follicle counts, no AMH, no labs) exists
 precisely to answer that, and still reaches 82.41% test accuracy with
-82.86% recall.
+74.29% recall.
 
 ## How to run
 

@@ -15,28 +15,30 @@ the same way for comparison. Predictions are stored in MySQL
 
 Test set: 73 patients without PCOS, 35 with PCOS. All numbers below are read
 from `src/main/resources/metrics.json`, produced by the trainer
-(`ModelTrainer`, run 2026-11-25) — measured values, not targets. The 95% CI
-is a bootstrap interval for test accuracy (1000 resamples, seed 42).
+(`ModelTrainer`, re-trained 2026-11-26 on Java 25 / Smile 6.3.0; the
+previous run 8 was 2026-11-25 on Smile 3.1.1) — measured values, not
+targets. The 95% CI is a bootstrap interval for test accuracy (1000
+resamples, seed 42).
 
 | Model | Test accuracy | Precision | Recall | F1 | ROC-AUC | PR-AUC | Brier | Train CV | TP/FP/FN/TN | 95% CI |
 |---|---|---|---|---|---|---|---|---|---|---|
-| **Soft Voting Ensemble — deployed** | **88.89%** | 89.66% | 74.29% | 81.25% | 0.925 | 0.879 | 0.0992 | 93.07% | 26/3/9/70 | 82.4–94.4% |
-| Gradient Boosting | 88.89% | 87.10% | 77.14% | 81.82% | 0.933 | 0.890 | 0.0963 | 92.15% | 27/4/8/69 | 82.4–94.4% |
-| Random Forest | 87.04% | 92.00% | 65.71% | 76.67% | 0.925 | 0.879 | 0.1028 | 90.76% | 23/2/12/71 | 79.6–93.5% |
+| **Soft Voting Ensemble — deployed** | **88.89%** | 92.59% | 71.43% | 80.65% | 0.927 | 0.882 | 0.0994 | 91.92% | 25/2/10/71 | 82.4–94.4% |
+| Gradient Boosting | 87.96% | 84.38% | 77.14% | 80.60% | 0.945 | 0.906 | 0.0908 | 91.22% | 27/5/8/68 | 81.5–93.5% |
+| Random Forest | 87.96% | 95.83% | 65.71% | 78.02% | 0.930 | 0.883 | 0.1017 | 90.99% | 23/1/12/72 | 80.6–93.5% |
 | Bagging | 87.04% | 86.21% | 71.43% | 78.13% | 0.900 | 0.848 | 0.1075 | 89.15% | 25/4/10/69 | 80.6–92.6% |
-| AdaBoost | 86.11% | 85.71% | 68.57% | 76.19% | 0.917 | 0.864 | 0.1811 | 89.38% | 24/4/11/69 | 78.7–92.6% |
-| Gradient Boosting (Screening) | 82.41% | 69.05% | 82.86% | 75.32% | 0.886 | 0.777 | 0.1331 | 82.45% | 29/13/6/60 | 75.0–88.9% |
+| AdaBoost | 86.11% | 81.25% | 74.29% | 77.61% | 0.928 | 0.888 | 0.1771 | 89.15% | 26/6/9/67 | 78.7–91.7% |
+| Gradient Boosting (Screening) | 82.41% | 72.22% | 74.29% | 73.24% | 0.880 | 0.758 | 0.1384 | 82.68% | 26/10/9/63 | 75.0–88.9% |
 
 The deployed model is the **Soft Voting Ensemble** (average P(PCOS) of the
 four tuned models): it had the best 5-fold cross-validation accuracy on the
-training split (93.07%), and it ties Gradient Boosting on the held-out test
-set (88.89%). The model was chosen by train CV, not by test accuracy.
-Gradient Boosting is the best single model (test 88.89%, CV 92.15%).
+training split (91.92%), and the best held-out test accuracy (88.89%). The
+model was chosen by train CV, not by test accuracy. Gradient Boosting,
+Random Forest and the linear SVM tie as the best single models (test 87.96%).
 
 **Read the small differences honestly.** With only 108 test rows, one
 patient is worth 0.93 percentage points, so 86% vs 89% is a difference of
 2–3 patients and is **not significant** — the bootstrap confidence intervals
-overlap heavily (e.g. AdaBoost 78.7–92.6% vs Gradient Boosting 82.4–94.4%).
+overlap heavily (e.g. AdaBoost 78.7–91.7% vs Gradient Boosting 81.5–93.5%).
 The honest claim is that all four ensembles and the voting ensemble sit in
 the same high-80s band, clearly above the baselines below.
 
@@ -47,7 +49,7 @@ the same high-80s band, clearly above the baselines below.
 | Majority Class (always "no PCOS") | 67.59% | 0.00% | 0.00% | 0.00% | 0.500 | 0.324 | 0.3241 | 67.21% | 0/0/35/73 | 58.3–75.9% |
 | Logistic Regression | 85.19% | 82.76% | 68.57% | 75.00% | 0.880 | 0.860 | 0.1151 | 87.07% | 24/5/11/68 | 77.8–91.7% |
 | Decision Tree (single) | 82.41% | 80.77% | 60.00% | 68.85% | 0.819 | 0.696 | 0.1428 | 84.76% | 21/5/14/68 | 75.0–89.8% |
-| SVM (Linear) | 83.33% | 79.31% | 65.71% | 71.88% | 0.788 | 0.632 | 0.1667 | 86.84% | 23/6/12/67 | 75.0–89.8% |
+| SVM (Linear) | 87.96% | 80.56% | 82.86% | 81.69% | 0.866 | 0.723 | 0.1204 | 89.38% | 29/7/6/66 | 82.4–93.5% |
 | KNN | 84.26% | 82.14% | 65.71% | 73.02% | 0.814 | 0.716 | 0.1430 | 85.91% | 23/5/12/68 | 77.8–90.7% |
 
 The majority-class baseline scores 67.59% by predicting the majority class
@@ -64,14 +66,14 @@ most for a screening tool: a missed case costs more than a false alarm.
 
 | Model | Tuned threshold | OOF precision / recall / F1 | Test at tuned threshold (acc / P / R / F1) | Test at 0.5 (acc / P / R / F1) |
 |---|---|---|---|---|
-| Soft Voting Ensemble (deployed) | 0.50 | 94.44% / 83.80% / 88.81% | 88.89% / 89.66% / 74.29% / 81.25% | 88.89% / 89.66% / 74.29% / 81.25% |
-| Gradient Boosting (Screening) | 0.25 | 64.80% / 81.69% / 72.27% | 82.41% / 69.05% / 82.86% / 75.32% | 79.63% / 72.41% / 60.00% / 65.62% |
+| Soft Voting Ensemble (deployed) | 0.55 | 94.21% / 80.28% / 86.69% | 88.89% / 92.59% / 71.43% / 80.65% | 88.89% / 89.66% / 74.29% / 81.25% |
+| Gradient Boosting (Screening) | 0.30 | 67.26% / 79.58% / 72.90% | 82.41% / 72.22% / 74.29% / 73.24% | 80.56% / 73.33% / 62.86% / 67.69% |
 
-For the deployed ensemble the tuned threshold came out at 0.50 — the
-default was already optimal on out-of-fold train data, so both columns are
-identical. For the screening model the tuned threshold (0.25) is the whole
-point: compared with 0.5 it trades 3.4 points of precision for **22.9
-points of recall** (60.00% → 82.86%) and gains 2.8 points of accuracy.
+For the deployed ensemble the tuned threshold came out at 0.55 — versus
+0.5 it trades 2.9 points of recall for 2.9 points of precision at the same
+accuracy. For the screening model the tuned threshold (0.30) is the whole
+point: compared with 0.5 it trades 1.1 points of precision for **11.4
+points of recall** (62.86% → 74.29%) and gains 1.9 points of accuracy.
 The API applies the tuned threshold automatically (`threshold` in the
 predict response); the 0.5 column is shown so the trade-off is visible.
 
@@ -85,10 +87,9 @@ gain, hair growth, skin darkening, hair loss, pimples, fast food, regular
 exercise, blood pressure. **No** follicle counts, **no** AMH/FSH/LH/TSH/PRL
 or other hormone/blood labs, **no** ultrasound measures. It is the model
 for early detection before a doctor visit, when labs and ultrasound are not
-available yet. It scores 82.41% test accuracy with 82.86% recall at its
+available yet. It scores 82.41% test accuracy with 74.29% recall at its
 tuned threshold — lower accuracy than the full 41-feature model, as
-expected from fewer features, but with the highest recall of any model
-here. The full model remains the default (`mode=full`).
+expected from fewer features. The full model remains the default (`mode=full`).
 
 **About the 99% target:** it was not reached. With 541 patients the test
 set has only 108 rows, so one patient is worth 0.93 percentage points and
