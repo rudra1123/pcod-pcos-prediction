@@ -843,16 +843,16 @@ export default function App() {
       {models && bestModel && (
         <div className="stat-row" aria-label="Model overview">
           <StatCard label="Deployed model" value={bestModel.name} sub="Chosen on cross-validation" delay={0} />
-          <StatCard label="Test accuracy" value={pct(bestModel.accuracy)} sub="Held-out test set, n = 108" delay={80} />
-          <StatCard label="ROC-AUC" value={modelAuc(bestModel) !== null ? modelAuc(bestModel).toFixed(3) : null} sub="Discrimination" delay={160} />
+          <StatCard label="Test accuracy" value={pct(bestModel.accuracy)} sub="Held-out test set, n = 108" delay={50} />
+          <StatCard label="ROC-AUC" value={modelAuc(bestModel) !== null ? modelAuc(bestModel).toFixed(3) : null} sub="Discrimination" delay={100} />
           {screeningModel && (
-            <StatCard label="Screening recall" value={pct(screeningModel.recall)} sub="23 non-invasive features" delay={240} />
+            <StatCard label="Screening recall" value={pct(screeningModel.recall)} sub="23 non-invasive features" delay={150} />
           )}
         </div>
       )}
 
       <main>
-        <section className="card animate-in" style={{ animationDelay: '120ms' }}>
+        <section className="card animate-in" style={{ animationDelay: '80ms' }}>
           <span className="card-eyebrow">Screening tool</span>
           <h2>Predict PCOD / PCOS</h2>
           <p className="muted">
@@ -887,7 +887,7 @@ export default function App() {
 
           <form onSubmit={handlePredict} noValidate>
             {SECTIONS.map((section, sIdx) => (
-              <fieldset key={section.id} className="section animate-in" style={{ animationDelay: `${200 + sIdx * 90}ms` }}>
+              <fieldset key={section.id} className="section animate-in" style={{ animationDelay: `${140 + sIdx * 50}ms` }}>
                 <legend>{section.title}</legend>
                 <div className="fields">
                   {section.keys.map((key) => {
@@ -1002,7 +1002,7 @@ export default function App() {
           {result && (
             <div
               id="result-panel"
-              className={`result ${isPcos ? 'result-pcos' : 'result-no-pcos'} animate-in`}
+              className={`result ${isPcos ? 'result-pcos' : 'result-no-pcos'}`}
               role="status"
             >
               <div className="result-top">
